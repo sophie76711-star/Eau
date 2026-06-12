@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Eau 檔案室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase Compat (no import needed, works everywhere) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#F6F4F1;--card:#EDECEA;--card2:#E6E3DF;
+  --border:#D9D6D1;--border2:#C8C4BE;
+  --ink:#282624;--ink2:#6E6A65;--ink3:#9E9990;
+  --gold:#9E8F7E;--white:#FDFCFB;
+  --red:#9B4A3E;--green:#4A7A5A;
+  --r:10px;--r2:6px;--nav-h:64px;--top-h:56px;
+}
+html,body{background:var(--bg);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-weight:300;min-height:100dvh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* SCREENS */
+#loading-screen,#login-screen,#shell{display:none}
+#loading-screen{position:fixed;inset:0;z-index:900;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:18px}
+.loading-brand{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:400;letter-spacing:.14em;color:var(--ink)}
+.loading-brand em{font-style:italic;color:var(--gold)}
+.spinner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--ink2);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-err{max-width:300px;text-align:center;padding:20px;font-size:13px;color:var(--red);line-height:1.7;display:none}
+
+#login-screen{position:fixed;inset:0;z-index:800;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;padding:40px 28px}
+.login-brand{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:400;letter-spacing:.14em;color:var(--ink);margin-bottom:6px}
+.login-brand em{font-style:italic;color:var(--gold)}
+.login-eyebrow{font-size:11px;color:var(--ink3);letter-spacing:.14em;text-transform:uppercase;margin-bottom:52px}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:310px;text-align:center}
+.login-box-head{font-size:15px;color:var(--ink);letter-spacing:.04em;margin-bottom:6px;font-weight:400}
+.login-box-desc{font-size:12px;color:var(--ink3);line-height:1.7;margin-bottom:24px}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:13px 16px;border-radius:50px;background:var(--ink);color:var(--bg);border:none;font-size:13px;font-family:'Noto Sans TC',sans-serif;font-weight:400;letter-spacing:.06em;cursor:pointer;transition:opacity .15s}
+.btn-google:hover{opacity:.82}.btn-google:disabled{opacity:.4;cursor:not-allowed}
+.login-err-msg{margin-top:14px;min-height:18px;font-size:12px;color:var(--red);line-height:1.6}
+
+/* APP */
+#shell{flex-direction:column;min-height:100dvh;max-width:430px;margin:0 auto}
+.topbar{position:sticky;top:0;z-index:90;height:var(--top-h);background:rgba(246,244,241,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 18px}
+.topbar-brand{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:400;letter-spacing:.12em;color:var(--ink)}
+.topbar-brand em{font-style:italic;color:var(--gold)}
+.topbar-actions{display:flex;gap:8px;align-items:center}
+.topbar-btn{width:34px;height:34px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink2);transition:background .15s}
+.topbar-btn:hover{background:var(--card2)}
+.user-avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border2);cursor:pointer;display:block}
+.user-avatar-ph{width:34px;height:34px;border-radius:50%;background:var(--card2);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer}
+
+.content{flex:1;padding-bottom:calc(var(--nav-h) + 16px + env(safe-area-inset-bottom))}
+.page{display:none}.page.on{display:block}
+
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;height:calc(var(--nav-h) + env(safe-area-inset-bottom));background:rgba(246,244,241,0.96);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:8px;z-index:90}
+.nav-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;cursor:pointer;font-size:9.5px;letter-spacing:.07em;color:var(--ink3);background:none;border:none;font-family:'Noto Sans TC',sans-serif;transition:color .15s}
+.nav-tab.on{color:var(--ink)}.nav-icon{font-size:21px;line-height:1;transition:transform .15s}.nav-tab.on .nav-icon{transform:scale(1.1)}
+
+.pg-head{padding:28px 18px 16px;display:flex;align-items:flex-end;justify-content:space-between}
+.pg-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:400;letter-spacing:.04em;line-height:1}
+.pg-sub{font-size:12px;color:var(--ink3);margin-top:3px;letter-spacing:.04em}
+.btn-new{display:flex;align-items:center;gap:5px;background:var(--ink);color:var(--bg);border:none;border-radius:50px;padding:9px 16px;font-size:12px;font-family:'Noto Sans TC',sans-serif;font-weight:400;letter-spacing:.06em;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn-new:hover{opacity:.8}
+
+.chips{display:flex;gap:7px;padding:0 18px 14px;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;padding:6px 13px;border-radius:50px;font-size:11.5px;letter-spacing:.05em;border:1px solid var(--border);background:var(--white);color:var(--ink2);cursor:pointer;transition:all .15s;font-family:'Noto Sans TC',sans-serif}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.list{display:flex;flex-direction:column;margin:0 18px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:15px 16px;cursor:pointer;transition:box-shadow .2s,transform .12s;position:relative;overflow:hidden;margin-bottom:10px}
+.card::after{content:'';position:absolute;right:16px;top:50%;width:5px;height:5px;border-right:1.5px solid var(--ink3);border-top:1.5px solid var(--ink3);transform:translateY(-50%) rotate(45deg)}
+.card:active{transform:scale(0.985)}
+.card-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.thumb{width:54px;height:54px;border-radius:7px;object-fit:cover;background:var(--border);flex-shrink:0}
+.thumb-ph{width:54px;height:54px;border-radius:7px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.card-meta{flex:1;min-width:0;padding-right:16px}
+.card-code{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;letter-spacing:.08em;color:var(--ink);line-height:1}
+.card-name{font-size:14px;color:var(--ink);margin-top:2px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-detail{font-size:11.5px;color:var(--ink3);margin-top:2px}
+.tag{display:inline-block;font-size:10px;letter-spacing:.09em;background:var(--white);color:var(--gold);border:1px solid var(--border2);border-radius:50px;padding:2px 9px;white-space:nowrap;flex-shrink:0}
+.card-nums{display:flex;border-top:1px solid var(--border);margin-top:10px;padding-top:10px}
+.num-item{flex:1;display:flex;flex-direction:column;gap:3px;padding-right:8px}
+.num-item+.num-item{border-left:1px solid var(--border);padding-left:12px;padding-right:0}
+.num-label{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.num-val{font-family:'Cormorant Garamond',serif;font-size:17px;color:var(--ink);letter-spacing:.02em}
+.num-val.gold{color:var(--gold)}.num-val.green{color:var(--green)}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 28px;text-align:center;gap:10px}
+.empty-ico{font-size:38px;opacity:.2}.empty-txt{font-size:13px;color:var(--ink3);line-height:1.7}
+
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(40,38,36,.45);display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.overlay.on{display:flex}
+.sheet{background:var(--bg);border-radius:22px 22px 0 0;width:100%;max-width:430px;max-height:93dvh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(40,38,36,.18);animation:up .28s cubic-bezier(.32,.72,0,1)}
+@keyframes up{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.sh-drag{width:34px;height:4px;background:var(--border);border-radius:2px;margin:11px auto 0}
+.sh-head{padding:14px 18px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.sh-title{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:400;letter-spacing:.05em}
+.sh-close{width:28px;height:28px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--ink2)}
+.sh-body{flex:1;overflow-y:auto;padding:16px 18px 28px;-webkit-overflow-scrolling:touch}
+.sh-foot{padding:11px 18px calc(11px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:9px;align-items:center}
+
+.btn-p{flex:1;background:var(--ink);color:var(--bg);border:none;border-radius:50px;padding:13px 16px;font-size:13px;font-family:'Noto Sans TC',sans-serif;font-weight:400;letter-spacing:.06em;cursor:pointer;transition:opacity .15s}
+.btn-p:hover{opacity:.82}
+.btn-s{background:var(--card);color:var(--ink);border:1px solid var(--border);border-radius:50px;padding:13px 16px;font-size:13px;font-family:'Noto Sans TC',sans-serif;cursor:pointer;transition:background .15s}
+.btn-s:hover{background:var(--card2)}
+.btn-d{background:transparent;color:var(--red);border:1px solid rgba(155,74,62,.25);border-radius:50px;padding:13px 14px;font-size:12px;font-family:'Noto Sans TC',sans-serif;cursor:pointer}
+
+.fsec{font-size:9.5px;text-transform:uppercase;letter-spacing:.13em;color:var(--ink3);margin:20px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.fg{margin-bottom:13px}
+.fl{display:block;font-size:11.5px;letter-spacing:.05em;color:var(--ink2);margin-bottom:5px}
+.fi,.fsel,.fta{width:100%;background:var(--white);border:1px solid var(--border);border-radius:var(--r2);padding:10px 13px;font-size:15px;color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-weight:300;outline:none;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+.fi:focus,.fsel:focus,.fta:focus{border-color:var(--gold)}
+.fi[readonly]{background:var(--card);color:var(--ink2)}
+.fta{resize:none;min-height:76px;line-height:1.65}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fcalc{background:var(--card);border:1px dashed var(--border2);border-radius:var(--r2);padding:11px 13px;margin-bottom:13px}
+.fcalc-l{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:3px}
+.fcalc-v{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--ink);letter-spacing:.02em}
+.fcalc-v.hl{color:var(--gold)}
+
+.imgup{border:1.5px dashed var(--border2);border-radius:var(--r);text-align:center;cursor:pointer;background:var(--white);position:relative;overflow:hidden;min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;transition:border-color .15s}
+.imgup:hover{border-color:var(--gold)}
+.imgup input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.imgup-prev{width:100%;max-height:200px;object-fit:cover;border-radius:7px;margin-bottom:8px;display:none}
+.imgup-ph{display:flex;flex-direction:column;align-items:center}
+.imgup-icon{font-size:26px;opacity:.25}.imgup-txt{font-size:12px;color:var(--ink3);margin-top:5px}
+
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 18px 10px}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:15px 14px}
+.sc.wide{grid-column:1/-1}
+.sc-l{font-size:9.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:5px}
+.sc-v{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:400;color:var(--ink)}
+.sc-v.big{font-size:38px}.sc-sub{font-size:11.5px;color:var(--ink3);margin-top:3px}
+
+.rtable{padding:0 18px}
+.rrow{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border)}
+.rrow:last-child{border-bottom:none}
+.rkey{font-size:13px;color:var(--ink2)}.rval{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--ink)}
+.rrow.total .rkey{font-weight:500;color:var(--ink)}.rrow.total .rval{font-size:24px}
+.rrow.profit .rval{color:var(--green)}.rrow.loss .rval{color:var(--red)}
+
+.toast{position:fixed;bottom:calc(var(--nav-h) + 20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 18px;border-radius:50px;font-size:12.5px;letter-spacing:.05em;opacity:0;transition:opacity .25s;z-index:400;pointer-events:none;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+.toast.on{opacity:1}
+
+.user-info-row{display:flex;align-items:center;gap:14px;padding:4px 0 20px}
+.user-info-av{width:52px;height:52px;border-radius:50%;object-fit:cover;background:var(--card2);border:2px solid var(--border);flex-shrink:0}
+.user-info-name{font-size:15px;font-weight:400;color:var(--ink)}
+.user-info-email{font-size:12px;color:var(--ink3);margin-top:2px;word-break:break-all}
+</style>
+</head>
+<body>
+
+<!-- SCREEN 1: LOADING -->
+<div id="loading-screen">
+  <div class="loading-brand">Eau <em>檔案室</em></div>
+  <div class="spinner" id="loading-spinner"></div>
+  <div class="loading-err" id="loading-err"></div>
+</div>
+
+<!-- SCREEN 2: LOGIN -->
+<div id="login-screen">
+  <div class="login-brand">Eau <em>檔案室</em></div>
+  <div class="login-eyebrow">選品管理系統</div>
+  <div class="login-box">
+    <div class="login-box-head">登入以繼續</div>
+    <div class="login-box-desc">使用 Google 帳號安全登入<br>資料即時同步雲端，隨時存取。</div>
+    <button class="btn-google" id="btn-google-login">
+      <svg width="17" height="17" viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+        <path fill="#fff" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+        <path fill="#fff" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+        <path fill="#fff" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+      </svg>
+      以 Google 帳號登入
+    </button>
+    <div class="login-err-msg" id="login-err-msg"></div>
+  </div>
+</div>
+
+<!-- SCREEN 3: APP -->
+<div id="shell">
+<header class="topbar">
+  <div class="topbar-brand">Eau <em>檔案室</em></div>
+  <div class="topbar-actions">
+    <div class="topbar-btn" id="btn-export" title="匯出">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v9M4 6.5l3.5 3.5L11 6.5M2 11v2h11v-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div id="user-avatar-wrap"></div>
+  </div>
+</header>
+
+<main class="content">
+  <div class="page on" id="pg-products">
+    <div class="pg-head">
+      <div><div class="pg-title">商品</div><div class="pg-sub" id="lbl-products">0 件</div></div>
+      <button class="btn-new" id="btn-new-product">＋ 新增</button>
+    </div>
+    <div class="chips" id="cat-chips">
+      <div class="chip on" data-cat="ALL">全部</div>
+      <div class="chip" data-cat="A">A 上衣</div><div class="chip" data-cat="B">B 下身</div>
+      <div class="chip" data-cat="C">C 鞋子</div><div class="chip" data-cat="D">D 飾品</div>
+      <div class="chip" data-cat="E">E 包包</div><div class="chip" data-cat="F">F 洋裝</div>
+      <div class="chip" data-cat="G">G 外套</div>
+    </div>
+    <div id="product-list" class="list"></div>
+  </div>
+
+  <div class="page" id="pg-batches">
+    <div class="pg-head">
+      <div><div class="pg-title">採購批次</div><div class="pg-sub" id="lbl-batches">0 批次</div></div>
+      <button class="btn-new" id="btn-new-batch">＋ 新增</button>
+    </div>
+    <div id="batch-list" class="list"></div>
+  </div>
+
+  <div class="page" id="pg-expenses">
+    <div class="pg-head">
+      <div><div class="pg-title">費用憑證</div><div class="pg-sub" id="lbl-expenses">0 筆</div></div>
+      <button class="btn-new" id="btn-new-expense">＋ 新增</button>
+    </div>
+    <div id="expense-list" class="list"></div>
+  </div>
+
+  <div class="page" id="pg-stores">
+    <div class="pg-head">
+      <div><div class="pg-title">韓國店家</div><div class="pg-sub" id="lbl-stores">0 間</div></div>
+      <button class="btn-new" id="btn-new-store">＋ 新增</button>
+    </div>
+    <div id="store-list" class="list"></div>
+  </div>
+
+  <div class="page" id="pg-report">
+    <div class="pg-head"><div><div class="pg-title">報表中心</div><div class="pg-sub">自動彙整</div></div></div>
+    <div id="report-body"></div>
+  </div>
+</main>
+
+<nav class="nav">
+  <button class="nav-tab on" data-page="products"><span class="nav-icon">🗂</span><span>商品</span></button>
+  <button class="nav-tab" data-page="batches"><span class="nav-icon">📦</span><span>採購</span></button>
+  <button class="nav-tab" data-page="expenses"><span class="nav-icon">🧾</span><span>費用</span></button>
+  <button class="nav-tab" data-page="stores"><span class="nav-icon">🏪</span><span>店家</span></button>
+  <button class="nav-tab" data-page="report"><span class="nav-icon">📊</span><span>報表</span></button>
+</nav>
+</div>
+
+<!-- PRODUCT SHEET -->
+<div class="overlay" id="ov-product"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title" id="sh-p-title">新增商品</div><div class="sh-close" id="sh-p-close">✕</div></div>
+  <div class="sh-body">
+    <div class="imgup"><input type="file" accept="image/*" id="p-img-input"><img id="p-imgprev" class="imgup-prev"><div id="p-imgph" class="imgup-ph"><div class="imgup-icon">🖼</div><div class="imgup-txt">點擊上傳商品圖片</div></div></div>
+    <div class="fsec">基本資訊</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">分類</label><select class="fsel" id="p-cat"><option value="">請選擇</option><option value="A">A — 上衣</option><option value="B">B — 下身</option><option value="C">C — 鞋子</option><option value="D">D — 飾品</option><option value="E">E — 包包</option><option value="F">F — 洋裝</option><option value="G">G — 外套</option></select></div>
+      <div class="fg"><label class="fl">商品編號</label><input class="fi" id="p-code" readonly placeholder="自動產生"></div>
+    </div>
+    <div class="fg"><label class="fl">商品名稱</label><input class="fi" id="p-name" placeholder="輸入名稱"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">顏色</label><input class="fi" id="p-color" placeholder="例：霧藍"></div>
+      <div class="fg"><label class="fl">尺寸</label><input class="fi" id="p-size" placeholder="F / S / M"></div>
+    </div>
+    <div class="fg"><label class="fl">韓國店家</label><select class="fsel" id="p-store"><option value="">請選擇（選填）</option></select></div>
+    <div class="fsec">成本計算</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">韓幣成本 ₩</label><input class="fi" id="p-krw" type="number" min="0" placeholder="0"></div>
+      <div class="fg"><label class="fl">匯率除數</label><input class="fi" id="p-rate" type="number" min="0" placeholder="40"></div>
+    </div>
+    <div class="fcalc"><div class="fcalc-l">台幣成本（自動）</div><div class="fcalc-v" id="p-twd-v">—</div></div>
+    <div class="fsec">第一批分攤費用</div>
+    <div class="frow">
+      <div class="fg"><label class="fl">分攤運費 NT$</label><input class="fi" id="p-ship" type="number" min="0" placeholder="0"></div>
+      <div class="fg"><label class="fl">分攤進口稅 NT$</label><input class="fi" id="p-imp" type="number" min="0" placeholder="0"></div>
+    </div>
+    <div class="fg"><label class="fl">分攤網店租金 NT$</label><input class="fi" id="p-rent" type="number" min="0" placeholder="0"></div>
+    <div class="fcalc"><div class="fcalc-l">定價成本（台幣成本＋分攤費用）</div><div class="fcalc-v" id="p-pricing-v">—</div></div>
+    <div class="fcalc" style="border-color:#C4B8A8;background:#FAF8F5"><div class="fcalc-l">建議售價（定價成本 × 1.5）</div><div class="fcalc-v hl" id="p-suggest-v">—</div></div>
+    <div class="fsec">定價與備註</div>
+    <div class="fg"><label class="fl">售價 NT$</label><input class="fi" id="p-price" type="number" min="0" placeholder="0"></div>
+    <div class="fg"><label class="fl">備註</label><textarea class="fta" id="p-note" placeholder="備註…"></textarea></div>
+  </div>
+  <div class="sh-foot"><button class="btn-d" id="p-del" style="display:none">刪除</button><button class="btn-s" id="p-cancel">取消</button><button class="btn-p" id="p-save">儲存</button></div>
+</div></div>
+
+<!-- BATCH SHEET -->
+<div class="overlay" id="ov-batch"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title" id="sh-b-title">新增採購批次</div><div class="sh-close" id="sh-b-close">✕</div></div>
+  <div class="sh-body">
+    <div class="fsec">批次資訊</div>
+    <div class="fg"><label class="fl">批次名稱</label><input class="fi" id="b-name" placeholder="例：2025 春夏第一批"></div>
+    <div class="frow"><div class="fg"><label class="fl">採購日期</label><input class="fi" id="b-date" type="date"></div><div class="fg"><label class="fl">匯率除數</label><input class="fi" id="b-rate" type="number" min="0" placeholder="40"></div></div>
+    <div class="fg"><label class="fl">總件數</label><input class="fi" id="b-qty" type="number" min="0" placeholder="0"></div>
+    <div class="fsec">費用明細</div>
+    <div class="fg"><label class="fl">國際運費 NT$</label><input class="fi" id="b-ship" type="number" min="0" placeholder="0"></div>
+    <div class="fg"><label class="fl">進口稅 NT$</label><input class="fi" id="b-imp" type="number" min="0" placeholder="0"></div>
+    <div class="fg"><label class="fl">網店租金 NT$</label><input class="fi" id="b-rent" type="number" min="0" placeholder="0"></div>
+    <div class="fsec">自動分攤（每件）</div>
+    <div class="fcalc"><div class="fcalc-l">每件分攤運費</div><div class="fcalc-v" id="b-sp-v">—</div></div>
+    <div class="fcalc"><div class="fcalc-l">每件分攤進口稅</div><div class="fcalc-v" id="b-ip-v">—</div></div>
+    <div class="fcalc"><div class="fcalc-l">每件分攤租金</div><div class="fcalc-v" id="b-rp-v">—</div></div>
+    <div class="fsec">憑證上傳</div>
+    <div class="imgup"><input type="file" accept="image/*,application/pdf" id="b-doc-input"><img id="b-docprev" class="imgup-prev"><div id="b-docph" class="imgup-ph"><div class="imgup-icon">📄</div><div class="imgup-txt">上傳採購憑證</div></div></div>
+  </div>
+  <div class="sh-foot"><button class="btn-d" id="b-del" style="display:none">刪除</button><button class="btn-s" id="b-cancel">取消</button><button class="btn-p" id="b-save">儲存</button></div>
+</div></div>
+
+<!-- EXPENSE SHEET -->
+<div class="overlay" id="ov-expense"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title">費用憑證</div><div class="sh-close" id="sh-e-close">✕</div></div>
+  <div class="sh-body">
+    <div class="fsec">費用資訊</div>
+    <div class="frow"><div class="fg"><label class="fl">日期</label><input class="fi" id="e-date" type="date"></div><div class="fg"><label class="fl">金額 NT$</label><input class="fi" id="e-amount" type="number" min="0" placeholder="0"></div></div>
+    <div class="fg"><label class="fl">類別</label><select class="fsel" id="e-cat"><option>廣告</option><option>網店月租</option><option>攝影棚</option><option>包材</option><option>車資</option><option>停車費</option><option>匯款手續費</option><option>其他</option></select></div>
+    <div class="fg"><label class="fl">備註</label><textarea class="fta" id="e-note" placeholder="備註說明…"></textarea></div>
+    <div class="fsec">憑證圖片</div>
+    <div class="imgup"><input type="file" accept="image/*" id="e-img-input"><img id="e-imgprev" class="imgup-prev"><div id="e-imgph" class="imgup-ph"><div class="imgup-icon">🧾</div><div class="imgup-txt">上傳費用憑證</div></div></div>
+  </div>
+  <div class="sh-foot"><button class="btn-d" id="e-del" style="display:none">刪除</button><button class="btn-s" id="e-cancel">取消</button><button class="btn-p" id="e-save">儲存</button></div>
+</div></div>
+
+<!-- STORE SHEET -->
+<div class="overlay" id="ov-store"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title">韓國店家</div><div class="sh-close" id="sh-s-close">✕</div></div>
+  <div class="sh-body">
+    <div class="fsec">店家資訊</div>
+    <div class="fg"><label class="fl">店家名稱</label><input class="fi" id="s-name" placeholder="輸入店家名稱"></div>
+    <div class="fg"><label class="fl">備註</label><textarea class="fta" id="s-note" placeholder="備註（選填）…"></textarea></div>
+  </div>
+  <div class="sh-foot"><button class="btn-d" id="s-del" style="display:none">刪除</button><button class="btn-s" id="s-cancel">取消</button><button class="btn-p" id="s-save">儲存</button></div>
+</div></div>
+
+<!-- USER SHEET -->
+<div class="overlay" id="ov-user"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title">帳號資訊</div><div class="sh-close" id="sh-u-close">✕</div></div>
+  <div class="sh-body">
+    <div class="user-info-row">
+      <img id="u-sheet-photo" class="user-info-av" style="display:none" src="" alt="">
+      <div id="u-sheet-photo-ph" class="user-info-av" style="display:flex;align-items:center;justify-content:center;font-size:22px">👤</div>
+      <div><div class="user-info-name" id="u-sheet-name">—</div><div class="user-info-email" id="u-sheet-email">—</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--ink3);line-height:1.75;margin-bottom:24px">資料即時同步至 Firestore，重新整理後資料仍完整保留。</div>
+    <button id="btn-signout" style="width:100%;padding:13px;font-size:13px;font-family:'Noto Sans TC',sans-serif;border-radius:50px;background:transparent;color:var(--red);border:1px solid rgba(155,74,62,.25);cursor:pointer">登出</button>
+  </div>
+</div></div>
+
+<!-- EXPORT SHEET -->
+<div class="overlay" id="ov-export"><div class="sheet">
+  <div class="sh-drag"></div>
+  <div class="sh-head"><div class="sh-title">匯出資料</div><div class="sh-close" id="sh-ex-close">✕</div></div>
+  <div class="sh-body">
+    <p style="font-size:13px;color:var(--ink2);line-height:1.75;margin-bottom:20px">以 CSV 格式下載，可直接用 Excel / Numbers 開啟（UTF-8 含 BOM）。</p>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <button class="btn-p" id="ex-products">📦 商品清單 CSV</button>
+      <button class="btn-p" id="ex-batches">🗂 採購批次 CSV</button>
+      <button class="btn-p" id="ex-expenses">🧾 費用憑證 CSV</button>
+      <button class="btn-p" id="ex-report">📊 報表摘要 CSV</button>
+    </div>
+  </div>
+  <div class="sh-foot"><button class="btn-s" id="sh-ex-cancel" style="width:100%">關閉</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════
+// SHOW LOADING IMMEDIATELY
+// ════════════════════════════
+document.getElementById('loading-screen').style.display = 'flex';
+
+// ════════════════════════════
+// FIREBASE CONFIG & INIT
+// ════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyAYIAAmhvlYq9tQ0HaugNsdGUnwtyq6MK0",
+  authDomain:        "eau-mere-test.firebaseapp.com",
+  projectId:         "eau-mere-test",
+  storageBucket:     "eau-mere-test.firebasestorage.app",
+  messagingSenderId: "782560318094",
+  appId:             "1:782560318094:web:53ac5eeb10c848d03a2fdf"
+};
+
+let auth, db;
+try {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db   = firebase.firestore();
+} catch(err) {
+  document.getElementById('loading-spinner').style.display = 'none';
+  var el = document.getElementById('loading-err');
+  el.style.display = 'block';
+  el.innerHTML = '<strong>Firebase 初始化失敗</strong><br>' + err.message;
+  // Stop execution
+  throw err;
+}
+
+// ════════════════════════════
+// CONSTANTS
+// ════════════════════════════
+const CAT  = {A:'上衣',B:'下身',C:'鞋子',D:'飾品',E:'包包',F:'洋裝',G:'外套'};
+const CATE = {A:'👕',B:'👖',C:'👟',D:'💍',E:'👜',F:'👗',G:'🧥'};
+const EXPE = {廣告:'📢',網店月租:'🌐',攝影棚:'📷',包材:'📦',車資:'🚌',停車費:'🅿️',匯款手續費:'💸',其他:'📋'};
+
+// ════════════════════════════
+// STATE
+// ════════════════════════════
+var DB = { products:[], batches:[], expenses:[], stores:[] };
+var currentUser  = null;
+var unsubs       = [];
+var currentPage  = 'products';
+var EID          = null;
+var IMGS         = {};
+var activeCat    = 'ALL';
+
+// ════════════════════════════
+// SCREEN SWITCH
+// ════════════════════════════
+function showScreen(name) {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display   = 'none';
+  document.getElementById('shell').style.display          = 'none';
+  if (name === 'loading') document.getElementById('loading-screen').style.display = 'flex';
+  if (name === 'login')   document.getElementById('login-screen').style.display   = 'flex';
+  if (name === 'app')     document.getElementById('shell').style.display          = 'flex';
+}
+
+// ════════════════════════════
+// TOAST
+// ════════════════════════════
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('on'); }, 2400);
+}
+
+// ════════════════════════════
+// UTILS
+// ════════════════════════════
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function openSheet(id)  { document.getElementById(id).classList.add('on'); }
+function closeSheet(id) { document.getElementById(id).classList.remove('on'); EID = null; }
+function resetImgup(prevId, phId) {
+  var img = document.getElementById(prevId);
+  if (img) { img.src=''; img.style.display='none'; }
+  var ph = document.getElementById(phId);
+  if (ph) ph.style.display = 'flex';
+  IMGS[prevId] = null;
+}
+function readFile(inp, prevId, phId) {
+  var f = inp.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = function(ev) {
+    var img = document.getElementById(prevId);
+    if (img) { img.src=ev.target.result; img.style.display='block'; }
+    var ph = document.getElementById(phId); if (ph) ph.style.display='none';
+    IMGS[prevId] = ev.target.result;
+  };
+  r.readAsDataURL(f);
+}
+function flashSync() {
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;bottom:calc(var(--nav-h)+10px + env(safe-area-inset-bottom));right:16px;width:7px;height:7px;background:#4A7A5A;border-radius:50%;z-index:300;transition:opacity .5s';
+  document.body.appendChild(d);
+  setTimeout(function(){ d.style.opacity='0'; setTimeout(function(){ d.remove(); }, 600); }, 900);
+}
+
+// ════════════════════════════
+// AUTH STATE
+// ════════════════════════════
+// Safety: if onAuthStateChanged never fires within 12s, show error
+var authTimeout = setTimeout(function() {
+  document.getElementById('loading-spinner').style.display = 'none';
+  var el = document.getElementById('loading-err');
+  el.style.display = 'block';
+  el.innerHTML = '<strong>連線逾時</strong><br>請檢查網路後重新整理頁面。';
+}, 12000);
+
+auth.onAuthStateChanged(function(user) {
+  clearTimeout(authTimeout);
+  if (user) {
+    currentUser = user;
+    updateUserUI(user);
+    subscribeAll(user.uid);
+    showScreen('app');
+  } else {
+    currentUser = null;
+    unsubs.forEach(function(u){ u(); }); unsubs = [];
+    DB.products=[]; DB.batches=[]; DB.expenses=[]; DB.stores=[];
+    showScreen('login');
+  }
+}, function(err) {
+  clearTimeout(authTimeout);
+  document.getElementById('loading-spinner').style.display = 'none';
+  var el = document.getElementById('loading-err');
+  el.style.display = 'block';
+  el.innerHTML = '<strong>Auth 初始化失敗</strong><br>' + err.message;
+});
+
+function updateUserUI(user) {
+  var wrap = document.getElementById('user-avatar-wrap');
+  if (user.photoURL) {
+    wrap.innerHTML = '<img class="user-avatar" src="'+user.photoURL+'" alt="avatar">';
+  } else {
+    wrap.innerHTML = '<div class="user-avatar-ph">👤</div>';
+  }
+  var photo   = document.getElementById('u-sheet-photo');
+  var photoph = document.getElementById('u-sheet-photo-ph');
+  if (user.photoURL) {
+    photo.src = user.photoURL; photo.style.display = 'block'; photoph.style.display = 'none';
+  } else {
+    photo.style.display = 'none'; photoph.style.display = 'flex';
+  }
+  document.getElementById('u-sheet-name').textContent  = user.displayName || '使用者';
+  document.getElementById('u-sheet-email').textContent = user.email || '';
+}
+
+// ════════════════════════════
+// GOOGLE LOGIN / LOGOUT
+// ════════════════════════════
+document.getElementById('btn-google-login').addEventListener('click', function() {
+  var btn   = document.getElementById('btn-google-login');
+  var errEl = document.getElementById('login-err-msg');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="opacity:.6">登入中…</span>';
+  errEl.textContent = '';
+  var provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).then(function() {
+    // onAuthStateChanged handles transition
+  }).catch(function(err) {
+    var msg = err.code === 'auth/popup-closed-by-user' ? '視窗已關閉，請再試一次。'
+            : err.code === 'auth/popup-blocked'        ? '彈出視窗被封鎖，請允許此網站開啟彈出視窗。'
+            : '登入失敗：' + err.message;
+    errEl.textContent = msg;
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 18 18"><path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#fff" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#fff" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#fff" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg> 以 Google 帳號登入';
+  });
+});
+
+document.getElementById('btn-signout').addEventListener('click', function() {
+  if (!confirm('確定登出？')) return;
+  auth.signOut().then(function(){ closeSheet('ov-user'); })
+      .catch(function(err){ toast('登出失敗：'+err.message); });
+});
+
+document.getElementById('user-avatar-wrap').addEventListener('click', function(){ openSheet('ov-user'); });
+
+// ════════════════════════════
+// FIRESTORE REALTIME
+// ════════════════════════════
+function subscribeAll(uid) {
+  function listen(colName, assign, render) {
+    var unsub = db.collection('users').doc(uid).collection(colName)
+      .onSnapshot(function(snap) {
+        assign(snap.docs.map(function(d){ return Object.assign({}, d.data(), {id: d.id}); }));
+        render();
+        if (currentPage === 'report') buildReport();
+      }, function(err) {
+        console.error(colName, err);
+        toast('⚠ ' + colName + ' 讀取失敗');
+      });
+    unsubs.push(unsub);
+  }
+  listen('products', function(v){ DB.products = v; }, renderProducts);
+  listen('batches',  function(v){ DB.batches  = v; }, renderBatches);
+  listen('expenses', function(v){ DB.expenses = v; }, renderExpenses);
+  listen('stores',   function(v){ DB.stores   = v; }, renderStores);
+}
+
+function fsSet(col, id, data) {
+  if (!currentUser) { toast('請先登入'); return Promise.reject('not logged in'); }
+  var clean = {};
+  for (var k in data) clean[k] = data[k] === undefined ? null : data[k];
+  return db.collection('users').doc(currentUser.uid).collection(col).doc(String(id)).set(clean)
+    .then(function(){ flashSync(); });
+}
+function fsDel(col, id) {
+  if (!currentUser) { toast('請先登入'); return Promise.reject('not logged in'); }
+  return db.collection('users').doc(currentUser.uid).collection(col).doc(String(id)).delete()
+    .then(function(){ flashSync(); });
+}
+
+// ════════════════════════════
+// NAV
+// ════════════════════════════
+document.querySelectorAll('.nav-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    var page = tab.dataset.page;
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('on'); });
+    document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('on'); });
+    document.getElementById('pg-'+page).classList.add('on');
+    tab.classList.add('on');
+    currentPage = page;
+    if (page === 'report') buildReport();
+  });
+});
+
+document.querySelectorAll('.overlay').forEach(function(o) {
+  o.addEventListener('click', function(e){ if (e.target===o) closeSheet(o.id); });
+});
+
+// Sheet close buttons
+document.getElementById('sh-p-close').addEventListener('click',  function(){ closeSheet('ov-product'); });
+document.getElementById('p-cancel').addEventListener('click',    function(){ closeSheet('ov-product'); });
+document.getElementById('sh-b-close').addEventListener('click',  function(){ closeSheet('ov-batch'); });
+document.getElementById('b-cancel').addEventListener('click',    function(){ closeSheet('ov-batch'); });
+document.getElementById('sh-e-close').addEventListener('click',  function(){ closeSheet('ov-expense'); });
+document.getElementById('e-cancel').addEventListener('click',    function(){ closeSheet('ov-expense'); });
+document.getElementById('sh-s-close').addEventListener('click',  function(){ closeSheet('ov-store'); });
+document.getElementById('s-cancel').addEventListener('click',    function(){ closeSheet('ov-store'); });
+document.getElementById('sh-u-close').addEventListener('click',  function(){ closeSheet('ov-user'); });
+document.getElementById('sh-ex-close').addEventListener('click', function(){ closeSheet('ov-export'); });
+document.getElementById('sh-ex-cancel').addEventListener('click',function(){ closeSheet('ov-export'); });
+document.getElementById('btn-export').addEventListener('click',  function(){ openSheet('ov-export'); });
+
+// New item buttons
+document.getElementById('btn-new-product').addEventListener('click', function(){ openProductForm(null); });
+document.getElementById('btn-new-batch').addEventListener('click',   function(){ openBatchForm(null); });
+document.getElementById('btn-new-expense').addEventListener('click', function(){ openExpenseForm(null); });
+document.getElementById('btn-new-store').addEventListener('click',   function(){ openStoreForm(null); });
+
+// Save / delete
+document.getElementById('p-save').addEventListener('click', saveProduct);
+document.getElementById('p-del').addEventListener('click',  delProduct);
+document.getElementById('b-save').addEventListener('click', saveBatch);
+document.getElementById('b-del').addEventListener('click',  delBatch);
+document.getElementById('e-save').addEventListener('click', saveExpense);
+document.getElementById('e-del').addEventListener('click',  delExpense);
+document.getElementById('s-save').addEventListener('click', saveStore);
+document.getElementById('s-del').addEventListener('click',  delStore);
+
+// Image inputs
+document.getElementById('p-img-input').addEventListener('change', function(){ readFile(this,'p-imgprev','p-imgph'); });
+document.getElementById('b-doc-input').addEventListener('change', function(){ readFile(this,'b-docprev','b-docph'); });
+document.getElementById('e-img-input').addEventListener('change', function(){ readFile(this,'e-imgprev','e-imgph'); });
+
+// Live recalc
+['p-krw','p-rate','p-ship','p-imp','p-rent'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', recalcP);
+});
+document.getElementById('p-cat').addEventListener('change', function(){ autoCode(false); });
+['b-qty','b-ship','b-imp','b-rent'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', recalcB);
+});
+
+// Category chips
+document.getElementById('cat-chips').addEventListener('click', function(e) {
+  var chip = e.target.closest('.chip'); if (!chip) return;
+  document.querySelectorAll('#cat-chips .chip').forEach(function(c){ c.classList.remove('on'); });
+  chip.classList.add('on');
+  activeCat = chip.dataset.cat;
+  renderProducts();
+});
+
+// Export
+document.getElementById('ex-products').addEventListener('click', function(){ doExport('products'); });
+document.getElementById('ex-batches').addEventListener('click',  function(){ doExport('batches'); });
+document.getElementById('ex-expenses').addEventListener('click', function(){ doExport('expenses'); });
+document.getElementById('ex-report').addEventListener('click',   function(){ doExport('report'); });
+
+// ════════════════════════════
+// PRODUCT
+// ════════════════════════════
+function autoCode(keepCurrent) {
+  var cat = document.getElementById('p-cat').value;
+  if (!cat) { document.getElementById('p-code').value=''; return; }
+  if (keepCurrent && EID) {
+    var ex = DB.products.find(function(p){ return p.id == EID; });
+    if (ex && ex.cat === cat) { document.getElementById('p-code').value = ex.code; return; }
+  }
+  var nums = DB.products
+    .filter(function(p){ return p.code && p.code[0]===cat && p.id!=EID; })
+    .map(function(p){ return parseInt(p.code.slice(1))||0; });
+  var next = (nums.length ? Math.max.apply(null,nums) : 0) + 1;
+  document.getElementById('p-code').value = cat + String(next).padStart(4,'0');
+}
+
+function recalcP() {
+  var krw  = +document.getElementById('p-krw').value  || 0;
+  var rate = +document.getElementById('p-rate').value || 0;
+  var ship = +document.getElementById('p-ship').value || 0;
+  var imp  = +document.getElementById('p-imp').value  || 0;
+  var rent = +document.getElementById('p-rent').value || 0;
+  var twd     = rate > 0 ? Math.round(krw/rate) : 0;
+  var pricing = twd + ship + imp + rent;
+  var sugg    = Math.round(pricing * 1.5);
+  document.getElementById('p-twd-v').textContent     = twd     ? 'NT$ '+twd.toLocaleString()     : '—';
+  document.getElementById('p-pricing-v').textContent = pricing ? 'NT$ '+pricing.toLocaleString() : '—';
+  document.getElementById('p-suggest-v').textContent = sugg    ? 'NT$ '+sugg.toLocaleString()    : '—';
+}
+
+function openProductForm(id) {
+  EID = id != null ? String(id) : null;
+  var p = EID ? DB.products.find(function(x){ return x.id===EID; }) : null;
+  document.getElementById('sh-p-title').textContent = p ? '編輯商品' : '新增商品';
+  document.getElementById('p-del').style.display    = p ? 'block' : 'none';
+  ['p-name','p-color','p-size','p-krw','p-rate','p-ship','p-imp','p-rent','p-price','p-note']
+    .forEach(function(f){ document.getElementById(f).value=''; });
+  document.getElementById('p-cat').value  = '';
+  document.getElementById('p-code').value = '';
+  ['p-twd-v','p-pricing-v','p-suggest-v'].forEach(function(f){ document.getElementById(f).textContent='—'; });
+  resetImgup('p-imgprev','p-imgph');
+  var sel = document.getElementById('p-store');
+  sel.innerHTML = '<option value="">請選擇（選填）</option>';
+  DB.stores.forEach(function(s){ sel.innerHTML += '<option value="'+s.id+'">'+esc(s.name)+'</option>'; });
+  if (p) {
+    document.getElementById('p-cat').value   = p.cat   || '';
+    autoCode(true);
+    document.getElementById('p-name').value  = p.name  || '';
+    document.getElementById('p-color').value = p.color || '';
+    document.getElementById('p-size').value  = p.size  || '';
+    document.getElementById('p-store').value = p.store || '';
+    document.getElementById('p-krw').value   = p.krw   || '';
+    document.getElementById('p-rate').value  = p.rate  || '';
+    document.getElementById('p-ship').value  = p.ship  || '';
+    document.getElementById('p-imp').value   = p.imp   || '';
+    document.getElementById('p-rent').value  = p.rent  || '';
+    document.getElementById('p-price').value = p.price || '';
+    document.getElementById('p-note').value  = p.note  || '';
+    if (p.img) {
+      var img = document.getElementById('p-imgprev');
+      img.src = p.img; img.style.display = 'block';
+      document.getElementById('p-imgph').style.display = 'none';
+      IMGS['p-imgprev'] = p.img;
+    }
+    recalcP();
+  }
+  openSheet('ov-product');
+}
+
+function saveProduct() {
+  var cat  = document.getElementById('p-cat').value;
+  var name = document.getElementById('p-name').value.trim();
+  if (!cat)  { toast('請選擇分類');     return; }
+  if (!name) { toast('請輸入商品名稱'); return; }
+  var krw  = +document.getElementById('p-krw').value  || 0;
+  var rate = +document.getElementById('p-rate').value || 0;
+  var ship = +document.getElementById('p-ship').value || 0;
+  var imp  = +document.getElementById('p-imp').value  || 0;
+  var rent = +document.getElementById('p-rent').value || 0;
+  var twd     = rate > 0 ? Math.round(krw/rate) : 0;
+  var pricing = twd + ship + imp + rent;
+  var id  = EID || String(Date.now());
+  var obj = {
+    id: id, cat: cat, code: document.getElementById('p-code').value,
+    name: name, color: document.getElementById('p-color').value,
+    size: document.getElementById('p-size').value,
+    store: document.getElementById('p-store').value,
+    krw: krw, rate: rate, twd: twd, ship: ship, imp: imp, rent: rent, pricing: pricing,
+    price: +document.getElementById('p-price').value || 0,
+    note: document.getElementById('p-note').value,
+    img: IMGS['p-imgprev'] || null,
+    updatedAt: Date.now()
+  };
+  fsSet('products', id, obj)
+    .then(function(){ closeSheet('ov-product'); toast('商品已儲存'); })
+    .catch(function(err){ toast('⚠ 儲存失敗：'+err.message); });
+}
+
+function delProduct() {
+  if (!EID || !confirm('確定刪除此商品？')) return;
+  fsDel('products', EID)
+    .then(function(){ closeSheet('ov-product'); toast('已刪除'); })
+    .catch(function(err){ toast('⚠ 刪除失敗：'+err.message); });
+}
+
+function renderProducts() {
+  document.getElementById('lbl-products').textContent = DB.products.length + ' 件';
+  var items = activeCat==='ALL' ? DB.products : DB.products.filter(function(p){ return p.cat===activeCat; });
+  var el    = document.getElementById('product-list');
+  if (!items.length) {
+    el.innerHTML='<div class="empty"><div class="empty-ico">'+(activeCat==='ALL'?'🗂':CATE[activeCat]||'📦')+'</div><div class="empty-txt">尚無商品<br>點擊右上角新增</div></div>';
+    return;
+  }
+  var sorted = items.slice().sort(function(a,b){ return (a.code||'').localeCompare(b.code||''); });
+  el.innerHTML = sorted.map(function(p) {
+    var mgn   = p.price && p.pricing ? Math.round((p.price-p.pricing)/p.price*100) : null;
+    var store = p.store ? DB.stores.find(function(s){ return s.id==p.store; }) : null;
+    var detail= [p.color, p.size, store?store.name:''].filter(Boolean).map(esc).join(' · ');
+    return '<div class="card" data-id="'+p.id+'" data-type="product">'+
+      '<div class="card-top">'+
+      (p.img?'<img class="thumb" src="'+p.img+'">':`<div class="thumb-ph">${CATE[p.cat]||'📦'}</div>`)+
+      '<div class="card-meta">'+
+      '<div class="card-code">'+esc(p.code)+'</div>'+
+      '<div class="card-name">'+esc(p.name)+'</div>'+
+      '<div class="card-detail">'+detail+'</div>'+
+      '</div>'+
+      '<span class="tag">'+(CAT[p.cat]||'')+'</span>'+
+      '</div>'+
+      '<div class="card-nums">'+
+      '<div class="num-item"><div class="num-label">定價成本</div><div class="num-val">'+(p.pricing?'NT$'+Number(p.pricing).toLocaleString():'—')+'</div></div>'+
+      '<div class="num-item"><div class="num-label">售價</div><div class="num-val gold">'+(p.price?'NT$'+Number(p.price).toLocaleString():'—')+'</div></div>'+
+      (mgn!==null?'<div class="num-item"><div class="num-label">毛利率</div><div class="num-val '+(mgn>=30?'green':'')+'">'+mgn+'%</div></div>':'')+
+      '</div></div>';
+  }).join('');
+  el.querySelectorAll('.card[data-type="product"]').forEach(function(c) {
+    c.addEventListener('click', function(){ openProductForm(c.dataset.id); });
+  });
+}
+
+// ════════════════════════════
+// BATCH
+// ════════════════════════════
+function recalcB() {
+  var qty  = +document.getElementById('b-qty').value  || 0;
+  var ship = +document.getElementById('b-ship').value || 0;
+  var imp  = +document.getElementById('b-imp').value  || 0;
+  var rent = +document.getElementById('b-rent').value || 0;
+  function fmt(v){ return qty > 0 ? 'NT$ '+(v/qty).toFixed(0)+' / 件' : '—'; }
+  document.getElementById('b-sp-v').textContent = fmt(ship);
+  document.getElementById('b-ip-v').textContent = fmt(imp);
+  document.getElementById('b-rp-v').textContent = fmt(rent);
+}
+
+function openBatchForm(id) {
+  EID = id != null ? String(id) : null;
+  var b = EID ? DB.batches.find(function(x){ return x.id===EID; }) : null;
+  document.getElementById('sh-b-title').textContent = b ? '編輯批次' : '新增採購批次';
+  document.getElementById('b-del').style.display    = b ? 'block' : 'none';
+  ['b-name','b-date','b-rate','b-qty','b-ship','b-imp','b-rent'].forEach(function(f){ document.getElementById(f).value=''; });
+  ['b-sp-v','b-ip-v','b-rp-v'].forEach(function(f){ document.getElementById(f).textContent='—'; });
+  resetImgup('b-docprev','b-docph');
+  if (b) {
+    document.getElementById('b-name').value = b.name  || '';
+    document.getElementById('b-date').value = b.date  || '';
+    document.getElementById('b-rate').value = b.rate  || '';
+    document.getElementById('b-qty').value  = b.qty   || '';
+    document.getElementById('b-ship').value = b.ship  || '';
+    document.getElementById('b-imp').value  = b.imp   || '';
+    document.getElementById('b-rent').value = b.rent  || '';
+    if (b.img) {
+      var img = document.getElementById('b-docprev');
+      img.src = b.img; img.style.display = 'block';
+      document.getElementById('b-docph').style.display = 'none';
+      IMGS['b-docprev'] = b.img;
+    }
+    recalcB();
+  }
+  openSheet('ov-batch');
+}
+
+function saveBatch() {
+  var name = document.getElementById('b-name').value.trim();
+  if (!name) { toast('請輸入批次名稱'); return; }
+  var id = EID || String(Date.now());
+  var obj = {
+    id: id, name: name,
+    date: document.getElementById('b-date').value,
+    rate: +document.getElementById('b-rate').value || 0,
+    qty:  +document.getElementById('b-qty').value  || 0,
+    ship: +document.getElementById('b-ship').value || 0,
+    imp:  +document.getElementById('b-imp').value  || 0,
+    rent: +document.getElementById('b-rent').value || 0,
+    img: IMGS['b-docprev'] || null,
+    updatedAt: Date.now()
+  };
+  fsSet('batches', id, obj)
+    .then(function(){ closeSheet('ov-batch'); toast('批次已儲存'); })
+    .catch(function(err){ toast('⚠ 儲存失敗：'+err.message); });
+}
+
+function delBatch() {
+  if (!EID || !confirm('確定刪除？')) return;
+  fsDel('batches', EID)
+    .then(function(){ closeSheet('ov-batch'); toast('已刪除'); })
+    .catch(function(err){ toast('⚠ 刪除失敗：'+err.message); });
+}
+
+function renderBatches() {
+  document.getElementById('lbl-batches').textContent = DB.batches.length + ' 批次';
+  var el = document.getElementById('batch-list');
+  if (!DB.batches.length) { el.innerHTML='<div class="empty"><div class="empty-ico">📦</div><div class="empty-txt">尚無採購批次</div></div>'; return; }
+  var sorted = DB.batches.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  el.innerHTML = sorted.map(function(b) {
+    var pSh = b.qty>0 ? (b.ship/b.qty).toFixed(0) : '—';
+    var pIm = b.qty>0 ? (b.imp/b.qty).toFixed(0)  : '—';
+    return '<div class="card" data-id="'+b.id+'" data-type="batch">'+
+      '<div class="card-top">'+
+      '<div class="thumb-ph">📦</div>'+
+      '<div class="card-meta">'+
+      '<div class="card-code" style="font-size:18px">'+esc(b.name)+'</div>'+
+      '<div class="card-detail">'+esc(b.date||'未設日期')+' ｜ 匯率除數 '+(b.rate||'—')+'</div>'+
+      '</div>'+
+      '<span class="tag">'+(b.qty||0)+' 件</span>'+
+      '</div>'+
+      '<div class="card-nums">'+
+      '<div class="num-item"><div class="num-label">運費/件</div><div class="num-val">NT$'+pSh+'</div></div>'+
+      '<div class="num-item"><div class="num-label">稅金/件</div><div class="num-val">NT$'+pIm+'</div></div>'+
+      '<div class="num-item"><div class="num-label">總運費</div><div class="num-val">'+(b.ship?'NT$'+Number(b.ship).toLocaleString():'—')+'</div></div>'+
+      '</div></div>';
+  }).join('');
+  el.querySelectorAll('.card[data-type="batch"]').forEach(function(c) {
+    c.addEventListener('click', function(){ openBatchForm(c.dataset.id); });
+  });
+}
+
+// ════════════════════════════
+// EXPENSE
+// ════════════════════════════
+function openExpenseForm(id) {
+  EID = id != null ? String(id) : null;
+  var e = EID ? DB.expenses.find(function(x){ return x.id===EID; }) : null;
+  document.getElementById('e-del').style.display = e ? 'block' : 'none';
+  document.getElementById('e-date').value   = '';
+  document.getElementById('e-amount').value = '';
+  document.getElementById('e-note').value   = '';
+  document.getElementById('e-cat').value    = '廣告';
+  resetImgup('e-imgprev','e-imgph');
+  if (e) {
+    document.getElementById('e-date').value   = e.date   || '';
+    document.getElementById('e-amount').value = e.amount || '';
+    document.getElementById('e-cat').value    = e.cat    || '廣告';
+    document.getElementById('e-note').value   = e.note   || '';
+    if (e.img) {
+      var img = document.getElementById('e-imgprev');
+      img.src = e.img; img.style.display = 'block';
+      document.getElementById('e-imgph').style.display = 'none';
+      IMGS['e-imgprev'] = e.img;
+    }
+  }
+  openSheet('ov-expense');
+}
+
+function saveExpense() {
+  var amount = +document.getElementById('e-amount').value;
+  if (!amount) { toast('請輸入金額'); return; }
+  var id = EID || String(Date.now());
+  var obj = {
+    id: id,
+    date:   document.getElementById('e-date').value,
+    amount: amount,
+    cat:    document.getElementById('e-cat').value,
+    note:   document.getElementById('e-note').value,
+    img:    IMGS['e-imgprev'] || null,
+    updatedAt: Date.now()
+  };
+  fsSet('expenses', id, obj)
+    .then(function(){ closeSheet('ov-expense'); toast('憑證已儲存'); })
+    .catch(function(err){ toast('⚠ 儲存失敗：'+err.message); });
+}
+
+function delExpense() {
+  if (!EID || !confirm('確定刪除？')) return;
+  fsDel('expenses', EID)
+    .then(function(){ closeSheet('ov-expense'); toast('已刪除'); })
+    .catch(function(err){ toast('⚠ 刪除失敗：'+err.message); });
+}
+
+function renderExpenses() {
+  document.getElementById('lbl-expenses').textContent = DB.expenses.length + ' 筆';
+  var el = document.getElementById('expense-list');
+  if (!DB.expenses.length) { el.innerHTML='<div class="empty"><div class="empty-ico">🧾</div><div class="empty-txt">尚無費用紀錄</div></div>'; return; }
+  var sorted = DB.expenses.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  el.innerHTML = sorted.map(function(e) {
+    return '<div class="card" data-id="'+e.id+'" data-type="expense">'+
+      '<div style="display:flex;align-items:center;gap:12px;padding-right:16px">'+
+      '<div class="thumb-ph" style="font-size:20px">'+(EXPE[e.cat]||'📋')+'</div>'+
+      '<div style="flex:1;min-width:0">'+
+      '<div class="card-name" style="font-size:15px">'+esc(e.cat)+'</div>'+
+      '<div class="card-detail">'+esc(e.date||'未設日期')+(e.note?' · '+esc(e.note):'')+'</div>'+
+      '</div>'+
+      '<div style="font-family:\'Cormorant Garamond\',serif;font-size:20px;color:var(--ink);white-space:nowrap">NT$'+Number(e.amount||0).toLocaleString()+'</div>'+
+      '</div></div>';
+  }).join('');
+  el.querySelectorAll('.card[data-type="expense"]').forEach(function(c) {
+    c.addEventListener('click', function(){ openExpenseForm(c.dataset.id); });
+  });
+}
+
+// ════════════════════════════
+// STORE
+// ════════════════════════════
+function openStoreForm(id) {
+  EID = id != null ? String(id) : null;
+  var s = EID ? DB.stores.find(function(x){ return x.id===EID; }) : null;
+  document.getElementById('s-del').style.display = s ? 'block' : 'none';
+  document.getElementById('s-name').value = s ? s.name : '';
+  document.getElementById('s-note').value = s ? (s.note||'') : '';
+  openSheet('ov-store');
+}
+
+function saveStore() {
+  var name = document.getElementById('s-name').value.trim();
+  if (!name) { toast('請輸入店家名稱'); return; }
+  var id = EID || String(Date.now());
+  var obj = { id: id, name: name, note: document.getElementById('s-note').value, updatedAt: Date.now() };
+  fsSet('stores', id, obj)
+    .then(function(){ closeSheet('ov-store'); toast('店家已儲存'); })
+    .catch(function(err){ toast('⚠ 儲存失敗：'+err.message); });
+}
+
+function delStore() {
+  if (!EID || !confirm('確定刪除？')) return;
+  fsDel('stores', EID)
+    .then(function(){ closeSheet('ov-store'); toast('已刪除'); })
+    .catch(function(err){ toast('⚠ 刪除失敗：'+err.message); });
+}
+
+function renderStores() {
+  document.getElementById('lbl-stores').textContent = DB.stores.length + ' 間';
+  var el = document.getElementById('store-list');
+  if (!DB.stores.length) { el.innerHTML='<div class="empty"><div class="empty-ico">🏪</div><div class="empty-txt">尚無店家資料</div></div>'; return; }
+  el.innerHTML = DB.stores.map(function(s) {
+    var cnt = DB.products.filter(function(p){ return p.store==s.id; }).length;
+    return '<div class="card" data-id="'+s.id+'" data-type="store">'+
+      '<div style="display:flex;align-items:center;gap:12px;padding-right:16px">'+
+      '<div class="thumb-ph">🏪</div>'+
+      '<div style="flex:1;min-width:0">'+
+      '<div class="card-name" style="font-size:16px">'+esc(s.name)+'</div>'+
+      (s.note?'<div class="card-detail">'+esc(s.note)+'</div>':'')+
+      '</div>'+
+      '<span class="tag">'+cnt+' 件商品</span>'+
+      '</div></div>';
+  }).join('');
+  el.querySelectorAll('.card[data-type="store"]').forEach(function(c) {
+    c.addEventListener('click', function(){ openStoreForm(c.dataset.id); });
+  });
+}
+
+// ════════════════════════════
+// REPORT
+// ════════════════════════════
+function buildReport() {
+  var tCost  = DB.products.reduce(function(s,p){ return s+(+p.pricing||0); }, 0);
+  var tRev   = DB.products.reduce(function(s,p){ return s+(+p.price||0);   }, 0);
+  var gross  = tRev - tCost;
+  var adExp  = DB.expenses.filter(function(e){ return e.cat==='廣告'; }).reduce(function(s,e){ return s+(+e.amount||0); }, 0);
+  var opExp  = DB.expenses.filter(function(e){ return e.cat!=='廣告'; }).reduce(function(s,e){ return s+(+e.amount||0); }, 0);
+  var net    = gross - adExp - opExp;
+  var netPct   = tRev>0 ? Math.round(net/tRev*100)   : 0;
+  var grossPct = tRev>0 ? Math.round(gross/tRev*100) : 0;
+  function f(v){ return 'NT$ '+v.toLocaleString(); }
+  document.getElementById('report-body').innerHTML =
+    '<div class="sg">'+
+    '<div class="sc wide">'+
+    '<div class="sc-l">淨利（估算）</div>'+
+    '<div class="sc-v big" style="color:'+(net>=0?'var(--green)':'var(--red)')+'">'+( net>=0?'+':'')+f(net)+'</div>'+
+    '<div class="sc-sub">淨利率 '+netPct+'%</div>'+
+    '</div>'+
+    '<div class="sc"><div class="sc-l">商品總成本</div><div class="sc-v">'+f(tCost)+'</div><div class="sc-sub">'+DB.products.length+' 件</div></div>'+
+    '<div class="sc"><div class="sc-l">商品總售價</div><div class="sc-v">'+f(tRev)+'</div><div class="sc-sub">毛利率 '+grossPct+'%</div></div>'+
+    '</div>'+
+    '<div style="padding:0 18px"><div class="fsec" style="margin-top:4px">損益明細</div></div>'+
+    '<div class="rtable">'+
+    '<div class="rrow"><span class="rkey">商品成本</span><span class="rval">'+f(tCost)+'</span></div>'+
+    '<div class="rrow"><span class="rkey">商品售價</span><span class="rval">'+f(tRev)+'</span></div>'+
+    '<div class="rrow total"><span class="rkey">毛利</span><span class="rval">'+f(gross)+'</span></div>'+
+    '<div class="rrow"><span class="rkey">廣告費</span><span class="rval">'+f(adExp)+'</span></div>'+
+    '<div class="rrow"><span class="rkey">營業費用</span><span class="rval">'+f(opExp)+'</span></div>'+
+    '<div class="rrow total '+(net>=0?'profit':'loss')+'"><span class="rkey">淨利</span><span class="rval">'+(net>=0?'+':'')+f(net)+'</span></div>'+
+    '</div>'+
+    '<div style="height:28px"></div>';
+}
+
+// ════════════════════════════
+// EXPORT
+// ════════════════════════════
+function doExport(type) {
+  var BOM = '\uFEFF'; var csv=''; var fn='';
+  if (type==='products') {
+    csv='商品編號,分類,名稱,顏色,尺寸,韓幣成本,匯率除數,台幣成本,分攤運費,分攤進口稅,分攤租金,定價成本,售價,備註\n';
+    DB.products.forEach(function(p){
+      csv+=p.code+','+(CAT[p.cat]||'')+','+p.name+','+(p.color||'')+','+(p.size||'')+','+(p.krw||0)+','+(p.rate||0)+','+(p.twd||0)+','+(p.ship||0)+','+(p.imp||0)+','+(p.rent||0)+','+(p.pricing||0)+','+(p.price||0)+',"'+(p.note||'').replace(/"/g,'""')+'"\n';
+    });
+    fn='eau_商品清單.csv';
+  } else if (type==='batches') {
+    csv='批次名稱,採購日期,匯率除數,總件數,國際運費,進口稅,網店租金\n';
+    DB.batches.forEach(function(b){
+      csv+='"'+(b.name||'').replace(/"/g,'""')+'",'+( b.date||'')+','+(b.rate||0)+','+(b.qty||0)+','+(b.ship||0)+','+(b.imp||0)+','+(b.rent||0)+'\n';
+    });
+    fn='eau_採購批次.csv';
+  } else if (type==='expenses') {
+    csv='日期,類別,金額,備註\n';
+    DB.expenses.forEach(function(e){
+      csv+=(e.date||'')+','+(e.cat||'')+','+(e.amount||0)+',"'+(e.note||'').replace(/"/g,'""')+'"\n';
+    });
+    fn='eau_費用憑證.csv';
+  } else {
+    var tC = DB.products.reduce(function(s,p){ return s+(+p.pricing||0); },0);
+    var tR = DB.products.reduce(function(s,p){ return s+(+p.price||0);   },0);
+    var ad = DB.expenses.filter(function(e){ return e.cat==='廣告'; }).reduce(function(s,e){ return s+(+e.amount||0); },0);
+    var op = DB.expenses.filter(function(e){ return e.cat!=='廣告'; }).reduce(function(s,e){ return s+(+e.amount||0); },0);
+    csv='項目,金額\n商品總成本,'+tC+'\n商品售價,'+tR+'\n毛利,'+(tR-tC)+'\n廣告費,'+ad+'\n營業費用,'+op+'\n淨利,'+(tR-tC-ad-op)+'\n';
+    fn='eau_報表.csv';
+  }
+  var blob = new Blob([BOM+csv],{type:'text/csv;charset=utf-8;'});
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a'); a.href=url; a.download=fn; a.click();
+  URL.revokeObjectURL(url); toast('匯出完成');
+}
+</script>
+</body>
+</html>
