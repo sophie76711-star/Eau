@@ -1358,7 +1358,11 @@ async function exportProductsExcel(){
           const w=Math.max(1,Math.round(dim.w*scale)),h=Math.max(1,Math.round(dim.h*scale));
           const offX=(COLPX-w)/2,offY=(ROWPX-h)/2;       // 置中
           const id=wb.addImage({base64:b64,extension:ext});
-          ws.addImage(id,{tl:{col:offX/COLPX,row:(r-1)+offY/ROWPX},ext:{width:w,height:h},editAs:'oneCell'});
+          // 用 twoCellAnchor（tl+br），錨點框=圖片縮放尺寸 → 相容 iOS Quick Look 且不變形
+          ws.addImage(id,{
+            tl:{col:offX/COLPX, row:(r-1)+offY/ROWPX},
+            br:{col:(offX+w)/COLPX, row:(r-1)+(offY+h)/ROWPX}
+          });
         }catch(e){console.error('img',e);}
       }
       r++;
