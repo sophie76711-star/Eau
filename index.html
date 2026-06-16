@@ -1307,12 +1307,82 @@ function pdfDoc(title,columns,rows){
 }
 function exportSectionPDF(section){
   if(section==='products')return exportProductsPDF();
+  if(section==='sales')return exportSalesPDF();
+  if(section==='purchases')return exportPurchasePDF();
+  if(section==='expenses')return exportExpensePDF();
   const all=buildSheets();
   const name=SECTION_LABEL[section];
   const sheet=all.find(([n])=>n===name);
   if(!sheet||sheet[1].length<=1){toast('這個區目前沒有資料');return;}
   const aoa=sheet[1];
   makePdf(pdfDoc(name+'紀錄',aoa[0],aoa.slice(1)),'Eau-Atelier-'+name+'-'+todayStr().replace(/-/g,'')+'.pdf',aoa[0].length>6);
+}
+/* PDF 共用樣式與元件 */
+const PDF_TH='text-align:left;padding:7px 8px;border-bottom:2px solid #A39279;color:#7A7167;font-size:11px;white-space:nowrap';
+const PDF_TD='padding:6px 8px;border-bottom:1px solid #E8E1D8;font-size:11px;vertical-align:middle';
+function pdfHeader(t){return `<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:10px;margin-bottom:14px"><div style="font-family:Poppins,sans-serif;font-size:22px;color:#A39279;font-weight:600">Eau Atelier</div><div style="font-weight:700;font-size:15px">${esc(t)} · ${esc(todayStr())}</div></div>`;}
+function pdfFooter(){return `<div style="margin-top:18px;font-size:11px;color:#7A7167;text-align:center">由 Eau Atelier 產生</div>`;}
+function pdfImgBox(cover,w,h){return cover?`<img src="${cover}" style="width:${w}px;height:${h}px;object-fit:contain;display:block;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px">`:`<div style="width:${w}px;height:${h}px;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px"></div>`;}
+function exportSalesPDF(){
+  if(!Store.data.sales.length){toast('銷售紀錄目前沒有資料');return;}
+  const rows=Store.data.sales.slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).map(s=>{
+    const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const cover=h?productCover(h.product):null;
+    return `<tr>
+      <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
+      <td style="${PDF_TD}">${esc(s.month)}</td>
+      <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(s.code)}</td>
+      <td style="${PDF_TD}">${esc(h?h.product.name:'(查無)')}</td>
+      <td style="${PDF_TD};text-align:right">${s.qty}</td>
+      <td style="${PDF_TD};text-align:right">${nt(c.price*s.qty)}</td>
+      <td style="${PDF_TD};text-align:right">${nt((c.price-c.twd)*s.qty)}</td>
+    </tr>`;
+  }).join('');
+  const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('銷售紀錄')}
+    <table style="width:100%;border-collapse:collapse"><thead><tr>
+      <th style="${PDF_TH}">圖片</th><th style="${PDF_TH}">月份</th><th style="${PDF_TH}">商品編號</th><th style="${PDF_TH}">商品名稱</th><th style="${PDF_TH};text-align:right">數量</th><th style="${PDF_TH};text-align:right">營收</th><th style="${PDF_TH};text-align:right">毛利</th>
+    </tr></thead><tbody>${rows}</tbody></table>${pdfFooter()}</div>`;
+  makePdf(html,'Eau-Atelier-銷售-'+todayStr().replace(/-/g,'')+'.pdf',true);
+}
+function exportPurchasePDF(){
+  if(!Store.data.purchases.length){toast('採購紀錄目前沒有資料');return;}
+  const rows=Store.data.purchases.slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).map(q=>{
+    const h=findVariant(q.code);const krw=h?(+h.product.krwCost||0):0;const rate=+q.rate||0;const twd=rate>0?Math.round(krw/rate):0;const cover=h?productCover(h.product):null;
+    return `<tr>
+      <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
+      <td style="${PDF_TD}">${esc(q.date||q.month||'')}</td>
+      <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(q.code)}</td>
+      <td style="${PDF_TD}">${esc(h?h.product.name:'(查無)')}</td>
+      <td style="${PDF_TD}">${esc(h?(h.product.vendor||''):'')}</td>
+      <td style="${PDF_TD};text-align:right">${esc(q.rate||'')}</td>
+      <td style="${PDF_TD};text-align:right">${q.qty}</td>
+      <td style="${PDF_TD};text-align:right">${nt(twd)}</td>
+      <td style="${PDF_TD};text-align:right">${nt(twd*q.qty)}</td>
+    </tr>`;
+  }).join('');
+  const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('採購紀錄')}
+    <table style="width:100%;border-collapse:collapse"><thead><tr>
+      <th style="${PDF_TH}">圖片</th><th style="${PDF_TH}">日期</th><th style="${PDF_TH}">商品編號</th><th style="${PDF_TH}">商品名稱</th><th style="${PDF_TH}">韓國廠商</th><th style="${PDF_TH};text-align:right">採購匯率</th><th style="${PDF_TH};text-align:right">數量</th><th style="${PDF_TH};text-align:right">台幣成本</th><th style="${PDF_TH};text-align:right">採購金額</th>
+    </tr></thead><tbody>${rows}</tbody></table>${pdfFooter()}</div>`;
+  makePdf(html,'Eau-Atelier-採購-'+todayStr().replace(/-/g,'')+'.pdf',true);
+}
+function exportExpensePDF(){
+  if(!Store.data.expenses.length){toast('費用紀錄目前沒有資料');return;}
+  const rows=Store.data.expenses.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e=>{
+    const amt=e.currency==='KRW'?`${nt(e.amount)}<div style="font-size:10px;color:#7A7167">原始 ${krwfmt(e.inputAmount)} · 匯率 ${esc(e.rate)}</div>`:nt(e.amount);
+    return `<tr>
+      <td style="${PDF_TD}">${esc(e.date)}</td>
+      <td style="${PDF_TD}">${esc(e.major)}</td>
+      <td style="${PDF_TD}">${esc(e.minor||'')}</td>
+      <td style="${PDF_TD};text-align:right">${amt}</td>
+      <td style="${PDF_TD}">${esc(e.note||'')}</td>
+      <td style="${PDF_TD}">${pdfImgBox(e.photo,76,96)}</td>
+    </tr>`;
+  }).join('');
+  const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('費用紀錄')}
+    <table style="width:100%;border-collapse:collapse"><thead><tr>
+      <th style="${PDF_TH}">日期</th><th style="${PDF_TH}">大分類</th><th style="${PDF_TH}">小分類</th><th style="${PDF_TH};text-align:right">金額</th><th style="${PDF_TH}">備註</th><th style="${PDF_TH}">收據</th>
+    </tr></thead><tbody>${rows}</tbody></table>${pdfFooter()}</div>`;
+  makePdf(html,'Eau-Atelier-費用-'+todayStr().replace(/-/g,'')+'.pdf',false);
 }
 /* ===== 商品庫：含圖片的 Excel / PDF ===== */
 function productCover(p){return (p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;}
