@@ -1422,9 +1422,10 @@ function swapProductImg(pid,ci){
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
 function dataUrlParts(d){const m=/^data:image\/(\w+);base64,(.*)$/.exec(d||'');if(m)return{ext:(m[1]==='jpg'?'jpeg':m[1]),b64:m[2]};return{ext:'jpeg',b64:(d||'').split(',').pop()};}
 function exportProductsExcelText(){
-  const all=buildSheets();
-  const sheets=all.filter(([n])=>n==='商品'||n==='規格庫存');
-  writeExcel(sheets,'Eau-Atelier-商品-'+todayStr().replace(/-/g,''));
+  const head=['商品編號','分類','商品名稱','顏色','尺寸','韓國廠商','狀態','韓幣成本','匯率','台幣成本','售價','庫存','備註'];
+  const rows=[head];
+  productVariantRows().forEach(({p,v})=>{const c=calcCost(p);rows.push([v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,+v.qty||0,p.note||'']);});
+  writeExcel([['商品',rows]],'Eau-Atelier-商品-'+todayStr().replace(/-/g,''));
 }
 function productVariantRows(){
   const out=[];
