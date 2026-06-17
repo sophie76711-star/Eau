@@ -1426,6 +1426,14 @@ function exportProductsExcelText(){
   const sheets=all.filter(([n])=>n==='商品'||n==='規格庫存');
   writeExcel(sheets,'Eau-Atelier-商品-'+todayStr().replace(/-/g,''));
 }
+function productVariantRows(){
+  const out=[];
+  Store.data.products.forEach(p=>{
+    const vs=(p.variants&&p.variants.length)?p.variants:[{code:p.baseCode,color:'',size:'',qty:0}];
+    vs.forEach(v=>out.push({p,v}));
+  });
+  return out;
+}
 async function exportProductsExcel(){
   if(!Store.data.products.length){toast('商品庫目前沒有商品');return;}
   if(!window.ExcelJS){toast('圖片元件未載入，改匯出純文字');return exportProductsExcelText();}
@@ -1434,86 +1442,60 @@ async function exportProductsExcel(){
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('商品');
     ws.columns=[
-      {header:'商品圖片',width:18},{header:'商品編號',width:12},{header:'分類',width:12},
-      {header:'商品名稱',width:24},{header:'韓國廠商',width:14},{header:'狀態',width:10},
-      {header:'韓幣成本',width:11},{header:'匯率',width:8},{header:'台幣成本',width:11},
-      {header:'定價倍率',width:9},{header:'額外加價',width:9},{header:'售價',width:11},
-      {header:'總庫存',width:8},{header:'備註',width:24}
+      {header:'圖片',width:18},{header:'商品編號',width:14},{header:'分類',width:12},
+      {header:'商品名稱',width:22},{header:'顏色',width:10},{header:'尺寸',width:9},
+      {header:'韓國廠商',width:14},{header:'狀態',width:10},{header:'韓幣成本',width:11},
+      {header:'匯率',width:8},{header:'台幣成本',width:11},{header:'售價',width:11},
+      {header:'庫存',width:8},{header:'備註',width:22}
     ];
     const hr=ws.getRow(1);hr.height=24;hr.font={bold:true,color:{argb:'FFFFFFFF'}};hr.alignment={vertical:'middle',horizontal:'center'};
     hr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFA39279'}};});
-    const COLPX=Math.round(18*7)+5;      // 圖片欄寬(px)≈131
-    const ROWPX=96;                       // 圖片列高(px)
-    const FITW=COLPX-12, FITH=ROWPX-10;   // 圖片可用區(留邊)
+    const COLPX=Math.round(18*7)+5, ROWPX=96, FITW=COLPX-12, FITH=ROWPX-10;
+    const idCache={}, dimCache={};
     let r=2;
-    for(const p of Store.data.products){
+    for(const {p,v} of productVariantRows()){
       const c=calcCost(p);const row=ws.getRow(r);
-      [,p.baseCode,catName(p.category),p.name||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,+p.multiplier||1.5,+p.extra||0,c.price,productQty(p),p.note||'']
-        .forEach((v,i)=>{if(i>0)row.getCell(i+1).value=v;});
-      row.height=ROWPX*0.75;             // px→points
-      row.alignment={vertical:'middle'};
-      const cover=productCover(p);
+      [,v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,+v.qty||0,p.note||'']
+        .forEach((val,i)=>{if(i>0)row.getCell(i+1).value=val;});
+      row.height=ROWPX*0.75;row.alignment={vertical:'middle'};
+      const cover=colorImage(p,v.color);
       if(cover){
         try{
-          const {ext,b64}=dataUrlParts(cover);
-          const dim=await imgDims(cover);
+          if(dimCache[cover]===undefined)dimCache[cover]=await imgDims(cover);
+          const dim=dimCache[cover];
           const scale=Math.min(FITW/dim.w,FITH/dim.h);
           const w=Math.max(1,Math.round(dim.w*scale)),h=Math.max(1,Math.round(dim.h*scale));
-          const offX=(COLPX-w)/2,offY=(ROWPX-h)/2;       // 置中
-          const id=wb.addImage({base64:b64,extension:ext});
-          // 用 twoCellAnchor（tl+br），錨點框=圖片縮放尺寸 → 相容 iOS Quick Look 且不變形
-          ws.addImage(id,{
-            tl:{col:offX/COLPX, row:(r-1)+offY/ROWPX},
-            br:{col:(offX+w)/COLPX, row:(r-1)+(offY+h)/ROWPX}
-          });
+          const offX=(COLPX-w)/2,offY=(ROWPX-h)/2;
+          if(idCache[cover]===undefined){const {ext,b64}=dataUrlParts(cover);idCache[cover]=wb.addImage({base64:b64,extension:ext});}
+          ws.addImage(idCache[cover],{tl:{col:offX/COLPX,row:(r-1)+offY/ROWPX},br:{col:(offX+w)/COLPX,row:(r-1)+(offY+h)/ROWPX}});
         }catch(e){console.error('img',e);}
       }
       r++;
     }
-    // 規格庫存（文字）
-    const vs=wb.addWorksheet('規格庫存');
-    vs.addRow(['商品編號','商品名稱','顏色','尺寸','數量']);vs.getRow(1).font={bold:true};
-    Store.data.products.forEach(p=>(p.variants||[]).forEach(v=>vs.addRow([v.code,p.name,v.color||'',v.size||'',+v.qty||0])));
     const buf=await wb.xlsx.writeBuffer();
     deliverFile(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),'Eau-Atelier-商品-'+todayStr().replace(/-/g,'')+'.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }catch(e){console.error(e);toast('產生失敗，改匯出純文字');exportProductsExcelText();}
 }
 function exportProductsPDF(){
   if(!Store.data.products.length){toast('商品庫目前沒有商品');return;}
-  const th='text-align:left;padding:7px 8px;border-bottom:2px solid #A39279;color:#7A7167;font-size:11px;white-space:nowrap';
-  const td='padding:6px 8px;border-bottom:1px solid #E8E1D8;font-size:11px;vertical-align:middle';
-  const rows=Store.data.products.map(p=>{
-    const c=calcCost(p);const cover=productCover(p);
-    const img=cover
-      ?`<img src="${cover}" style="width:96px;height:78px;object-fit:contain;display:block;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px">`
-      :`<div style="width:96px;height:78px;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px"></div>`;
+  const rows=productVariantRows().map(({p,v})=>{
+    const c=calcCost(p);const cover=colorImage(p,v.color);
     return `<tr>
-      <td style="${td}">${img}</td>
-      <td style="${td};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(p.baseCode)}</td>
-      <td style="${td}">${esc(catName(p.category))}</td>
-      <td style="${td}">${esc(p.name||'')}</td>
-      <td style="${td}">${esc(p.vendor||'')}</td>
-      <td style="${td}">${esc(p.status||'')}</td>
-      <td style="${td};text-align:right">${krwfmt(+p.krwCost||0)}</td>
-      <td style="${td};text-align:right">${esc(p.rate||'')}</td>
-      <td style="${td};text-align:right">${nt(c.twd)}</td>
-      <td style="${td};text-align:right">${nt(c.price)}</td>
-      <td style="${td};text-align:right">${productQty(p)}</td>
+      <td style="${PDF_TD}">${pdfImgBox(cover,96,78)}</td>
+      <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(v.code)}</td>
+      <td style="${PDF_TD}">${esc(p.name||'')}</td>
+      <td style="${PDF_TD}">${esc(v.color||'')}</td>
+      <td style="${PDF_TD}">${esc(v.size||'')}</td>
+      <td style="${PDF_TD}">${esc(p.vendor||'')}</td>
+      <td style="${PDF_TD};text-align:right">${nt(c.twd)}</td>
+      <td style="${PDF_TD};text-align:right">${nt(c.price)}</td>
+      <td style="${PDF_TD};text-align:right">${+v.qty||0}</td>
     </tr>`;
   }).join('');
-  const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:10px;margin-bottom:14px">
-      <div style="font-family:Poppins,sans-serif;font-size:22px;color:#A39279;font-weight:600">Eau Atelier</div>
-      <div style="font-weight:700;font-size:15px">商品庫 · ${esc(todayStr())}</div>
-    </div>
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        <th style="${th}">圖片</th><th style="${th}">商品編號</th><th style="${th}">分類</th><th style="${th}">商品名稱</th><th style="${th}">韓國廠商</th><th style="${th}">狀態</th><th style="${th};text-align:right">韓幣成本</th><th style="${th};text-align:right">匯率</th><th style="${th};text-align:right">台幣成本</th><th style="${th};text-align:right">售價</th><th style="${th};text-align:right">庫存</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="margin-top:18px;font-size:11px;color:#7A7167;text-align:center">由 Eau Atelier 產生</div>
-  </div>`;
+  const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('商品庫')}
+    <table style="width:100%;border-collapse:collapse"><thead><tr>
+      <th style="${PDF_TH}">圖片</th><th style="${PDF_TH}">商品編號</th><th style="${PDF_TH}">商品名稱</th><th style="${PDF_TH}">顏色</th><th style="${PDF_TH}">尺寸</th><th style="${PDF_TH}">韓國廠商</th><th style="${PDF_TH};text-align:right">台幣成本</th><th style="${PDF_TH};text-align:right">售價</th><th style="${PDF_TH};text-align:right">庫存</th>
+    </tr></thead><tbody>${rows}</tbody></table>${pdfFooter()}</div>`;
   makePdf(html,'Eau-Atelier-商品-'+todayStr().replace(/-/g,'')+'.pdf',true);
 }
 function exportPDF(){
