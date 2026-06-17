@@ -254,6 +254,13 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .addinline{display:flex;gap:8px;margin-top:8px;}
 .addinline input{flex:1;}
 .addinline button{background:var(--main-soft);color:#fff;border-radius:12px;padding:0 16px;font-weight:700;}
+.color-row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 10px;margin-top:8px;}
+.color-row .cc{font-family:Nunito;font-weight:800;color:#fff;background:var(--main);border-radius:8px;width:26px;height:26px;display:grid;place-items:center;font-size:13px;flex-shrink:0;}
+.color-name{flex:1;font-size:15px;font-weight:600;color:var(--ink);}
+.color-pic{position:relative;width:50px;height:50px;border-radius:10px;border:1.5px dashed var(--main-soft);display:grid;place-items:center;font-size:10px;color:var(--main);text-align:center;line-height:1.15;cursor:pointer;overflow:hidden;flex-shrink:0;}
+.color-pic img{width:100%;height:100%;object-fit:cover;}
+.color-rm{background:transparent;color:var(--clay);font-size:12px;font-weight:700;padding:4px 6px;flex-shrink:0;cursor:pointer;}
+.color-row .x{color:var(--ink-soft);font-weight:700;cursor:pointer;padding:4px;flex-shrink:0;}
 
 .variant-tbl{background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line);}
 .variant-tbl .vr{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line);}
@@ -753,7 +760,7 @@ function renderProducts(){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>找不到符合的商品</p></div>`;
   }else{
     body=list.map(p=>{
-      const c=calcCost(p);const cover=(p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image;
+      const c=calcCost(p);const cover=productCover(p);
       return `<div class="item">
         <div class="thumb">${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover">`:ILL.product}</div>
         <div class="body">
@@ -937,7 +944,8 @@ function doConfirm(){const cb=_confirmCb;_confirmCb=null;closeSheet();if(cb)setT
 let pf=null; // 編輯中的商品草稿
 function openProductForm(id){
   if(id){const src=Store.data.products.find(p=>p.id===id);pf=JSON.parse(JSON.stringify(src));pf._editing=true;}
-  else{pf={id:uid(),category:'A',baseCode:'',name:'',vendor:'',note:'',status:'上架中',images:[],colors:[],sizes:[],variants:[],krwCost:'',rate:'',multiplier:'',extra:'',price:'',priceManual:false,_editing:false};}
+  else{pf={id:uid(),category:'A',baseCode:'',name:'',vendor:'',note:'',status:'上架中',images:[],colors:[],colorImages:{},sizes:[],variants:[],krwCost:'',rate:'',multiplier:'',extra:'',price:'',priceManual:false,_editing:false};}
+  if(!pf.colorImages)pf.colorImages={};
   if(!pf._editing)pf.baseCode=pf.category+nextSerial(pf.category);
   if(!pf.variants||!pf.variants.length)pf.variants=genVariants(pf);
   drawProductForm();
@@ -974,9 +982,16 @@ function drawProductForm(){
       </div>
     </div>
 
-    <div class="field"><label>顏色 <span class="opt">依輸入順序給 A／B／C…，可不填</span></label>
-      <div class="chips" id="cChips">${(pf.colors||[]).map((co,i)=>`<span class="chip"><span class="cc">${String.fromCharCode(65+i)}</span>${esc(co)} <span class="x" onclick="pfRmColor(${i})">×</span></span>`).join('')}</div>
+    <div class="field"><label>顏色與圖片 <span class="opt">依序給 A／B／C…,每色可綁照片</span></label>
+      <div id="cList">${(pf.colors||[]).map((co,i)=>{const im=(pf.colorImages||{})[co];return `<div class="color-row">
+        <span class="cc">${String.fromCharCode(65+i)}</span>
+        <span class="color-name">${esc(co)}</span>
+        <label class="color-pic">${im?`<img src="${im}">`:'＋照片'}<input type="file" accept="image/*" style="display:none" onchange="pfColorImg(${i},this.files[0])"></label>
+        ${im?`<button class="color-rm" onclick="pfRmColorImg(${i})">移除圖</button>`:''}
+        <span class="x" onclick="pfRmColor(${i})">×</span>
+      </div>`;}).join('')}</div>
       <div class="addinline"><input id="colorIn" placeholder="例：黑色" onkeydown="if(event.key==='Enter'){event.preventDefault();pfAddColor()}"><button onclick="pfAddColor()">加入</button></div>
+      <div class="hint">未設定顏色照片時,會顯示商品共用圖片</div>
     </div>
 
     <div class="field"><label>尺寸 <span class="opt">直接作為尺寸代碼，可不填</span></label>
@@ -1021,7 +1036,9 @@ function drawProductForm(){
 }
 function pfCat(v){pf.category=v;pf.baseCode=v+nextSerial(v);pf.variants=genVariants(pf);drawProductForm();}
 function pfAddColor(){const el=$('colorIn');const v=el.value.trim();if(!v)return;pf.colors=pf.colors||[];pf.colors.push(v);pf.variants=genVariants(pf);drawProductForm();setTimeout(()=>{const n=$('colorIn');if(n)n.focus();},0);}
-function pfRmColor(i){pf.colors.splice(i,1);pf.variants=genVariants(pf);drawProductForm();}
+function pfRmColor(i){const co=pf.colors[i];if(pf.colorImages)delete pf.colorImages[co];pf.colors.splice(i,1);pf.variants=genVariants(pf);drawProductForm();}
+function pfColorImg(i,f){if(!f)return;const co=pf.colors[i];fileToThumb(f,500,d=>{pf.colorImages=pf.colorImages||{};pf.colorImages[co]=d;drawProductForm();});}
+function pfRmColorImg(i){const co=pf.colors[i];if(pf.colorImages)delete pf.colorImages[co];drawProductForm();}
 function pfAddSize(){const el=$('sizeIn');const v=el.value.trim();if(!v)return;pf.sizes=pf.sizes||[];pf.sizes.push(v);pf.variants=genVariants(pf);drawProductForm();setTimeout(()=>{const n=$('sizeIn');if(n)n.focus();},0);}
 function pfRmSize(i){pf.sizes.splice(i,1);pf.variants=genVariants(pf);drawProductForm();}
 function pfAddImg(files){let n=files.length;[...files].forEach(f=>fileToThumb(f,500,d=>{pf.images=pf.images||[];pf.images.push(d);if(--n===0)drawProductForm();}));}
@@ -1330,7 +1347,7 @@ function pdfImgBox(cover,w,h){return cover?`<img src="${cover}" style="width:${w
 function exportSalesPDF(){
   if(!Store.data.sales.length){toast('銷售紀錄目前沒有資料');return;}
   const rows=Store.data.sales.slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).map(s=>{
-    const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const cover=h?productCover(h.product):null;
+    const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const cover=h?colorImage(h.product,h.variant.color):null;
     return `<tr>
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(s.month)}</td>
@@ -1350,7 +1367,7 @@ function exportSalesPDF(){
 function exportPurchasePDF(){
   if(!Store.data.purchases.length){toast('採購紀錄目前沒有資料');return;}
   const rows=Store.data.purchases.slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).map(q=>{
-    const h=findVariant(q.code);const krw=h?(+h.product.krwCost||0):0;const rate=+q.rate||0;const twd=rate>0?Math.round(krw/rate):0;const cover=h?productCover(h.product):null;
+    const h=findVariant(q.code);const krw=h?(+h.product.krwCost||0):0;const rate=+q.rate||0;const twd=rate>0?Math.round(krw/rate):0;const cover=h?colorImage(h.product,h.variant.color):null;
     return `<tr>
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(q.date||q.month||'')}</td>
@@ -1389,7 +1406,19 @@ function exportExpensePDF(){
   makePdf(html,'Eau-Atelier-費用-'+todayStr().replace(/-/g,'')+'.pdf',false);
 }
 /* ===== 商品庫：含圖片的 Excel / PDF ===== */
-function productCover(p){return (p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;}
+function productCover(p){
+  if(p.colors&&p.colors.length&&p.colorImages){for(const co of p.colors){if(p.colorImages[co])return p.colorImages[co];}}
+  return (p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;
+}
+function colorImage(p,color){return (p.colorImages&&p.colorImages[color])||(p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;}
+function swapProductImg(pid,ci){
+  const p=Store.data.products.find(x=>x.id===pid);if(!p)return;
+  const src=colorImage(p,(p.colors||[])[ci]);
+  const box=document.querySelector('[data-pimg="'+pid+'"]');
+  if(box)box.innerHTML=src?'<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">':ILL.product;
+  document.querySelectorAll('[data-pchip="'+pid+'"]').forEach(c=>c.classList.remove('on'));
+  const chip=document.querySelector('[data-pchip="'+pid+'"][data-ci="'+ci+'"]');if(chip)chip.classList.add('on');
+}
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
 function dataUrlParts(d){const m=/^data:image\/(\w+);base64,(.*)$/.exec(d||'');if(m)return{ext:(m[1]==='jpg'?'jpeg':m[1]),b64:m[2]};return{ext:'jpeg',b64:(d||'').split(',').pop()};}
 function exportProductsExcelText(){
