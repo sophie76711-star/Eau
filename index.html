@@ -181,7 +181,11 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .diary .cat .c1{font-weight:700;font-size:14px;}
 .diary .cat .c2{font-size:12px;color:var(--ink-soft);}
 .diary .note{font-size:13px;color:var(--ink-soft);margin-top:7px;}
-.diary .photo{margin-top:10px;width:100%;max-height:160px;object-fit:cover;border-radius:12px;}
+.diary .receipt{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.diary .receipt span{font-size:12px;color:var(--ink-soft);}
+.diary .photo{width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:pointer;flex-shrink:0;}
+.imgview{position:fixed;inset:0;background:rgba(31,31,31,.85);display:grid;place-items:center;z-index:9999;padding:24px;}
+.imgview img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.4);}
 
 /* card action menu */
 .cardact{display:flex;gap:8px;margin-top:11px;}
@@ -762,7 +766,7 @@ function renderProducts(){
     body=list.map(p=>{
       const c=calcCost(p);const cover=productCover(p);
       return `<div class="item">
-        <div class="thumb">${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover">`:ILL.product}</div>
+        <div class="thumb">${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="viewImg(this.src)">`:ILL.product}</div>
         <div class="body">
           <div class="code">${esc(p.baseCode)} · ${esc(catName(p.category))}</div>
           <div class="name">${esc(p.name||'未命名商品')}</div>
@@ -840,7 +844,7 @@ function renderExpenses(){
       <div class="cat"><span class="c1">${esc(e.major)}</span> <span class="c2">· ${esc(e.minor||'')}</span></div>
       ${e.currency==='KRW'?`<div class="c2" style="margin-top:3px">原始 ${krwfmt(e.inputAmount)} · 匯率 ${esc(e.rate)}</div>`:''}
       ${e.note?`<div class="note">${esc(e.note)}</div>`:''}
-      ${e.photo?`<img class="photo" src="${e.photo}">`:''}
+      ${e.photo?`<div class="receipt"><img class="photo" src="${e.photo}" onclick="viewImg(this.src)"><span>收據 · 點看大圖</span></div>`:''}
       <div class="cardact"><button onclick="openExpenseForm('${e.id}')">編輯</button><button class="del" onclick="removeRec('expenses','${e.id}')">刪除</button></div>
     </div>`).join('');
   }
@@ -854,6 +858,7 @@ function renderExpenses(){
 }
 
 /* ---------- 採購紀錄 ---------- */
+function viewImg(src){const ov=document.createElement('div');ov.className='imgview';const im=document.createElement('img');im.src=src;ov.appendChild(im);ov.onclick=()=>ov.remove();document.body.appendChild(ov);}
 function renderPurchases(){
   let list=Store.data.purchases.slice().reverse();
   let body;
