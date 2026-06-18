@@ -211,6 +211,11 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .rrow.total .k{font-weight:700;color:var(--ink);font-size:16px;}
 .rrow.total .v{font-size:20px;}
 .rrow.minus .v{color:var(--clay);}
+.rrow.sub{padding:9px 0 9px 12px;border-bottom:1px dashed var(--line);}
+.rrow.sub .k{font-size:13px;color:var(--ink-soft);}
+.rrow.sub .v{font-size:14px;font-weight:700;color:var(--clay);}
+.restock{color:var(--clay);font-weight:700;}
+.lookup-ok .ln.warn b,.lookup-ok .ln.warn span{color:var(--clay);font-weight:700;}
 
 /* month chips */
 .monthrow{display:flex;gap:8px;overflow-x:auto;padding:2px 0 16px;-webkit-overflow-scrolling:touch;}
@@ -533,7 +538,15 @@ function calcCost(p){
   const price=p.priceManual?(+p.price||0):suggest;
   return {twd,suggest,price};
 }
-function productQty(p){return (p.variants||[]).reduce((s,v)=>s+(+v.qty||0),0);}
+/* ===== 庫存自動計算：現貨 = 期初 + 進貨 − 銷售；不足為需補貨 ===== */
+function variantPurchased(code){return Store.data.purchases.reduce((s,p)=>s+(p.code===code?(+p.qty||0):0),0);}
+function variantSold(code){return Store.data.sales.reduce((s,x)=>s+(x.code===code?(+x.qty||0):0),0);}
+function variantStock(v){return (+v.qty||0)+variantPurchased(v.code)-variantSold(v.code);}
+function variantRestock(v){const st=variantStock(v);return st<0?-st:0;}
+function codeStock(code){const h=findVariant(code);return h?variantStock(h.variant):0;}
+function productStock(p){return (p.variants||[]).reduce((s,v)=>s+Math.max(0,variantStock(v)),0);}
+function productRestock(p){return (p.variants||[]).reduce((s,v)=>s+variantRestock(v),0);}
+function productQty(p){return productStock(p);}
 function findVariant(code){
   for(const p of Store.data.products)
     for(const v of (p.variants||[]))
@@ -546,27 +559,28 @@ function allCodes(){
   return out;
 }
 
-/* ---------- 月結計算 ---------- */
+/* ---------- 月結計算（現金流：營收 − 全部支出 = 淨利） ---------- */
 function monthlyReport(month){
-  let revenue=0,goodsCost=0;
+  let revenue=0;
   Store.data.sales.forEach(s=>{
     if(s.month===month){
       const hit=findVariant(s.code);
-      if(hit){const c=calcCost(hit.product);revenue+=c.price*s.qty;goodsCost+=c.twd*s.qty;}
+      if(hit){const c=calcCost(hit.product);revenue+=c.price*s.qty;}
     }
   });
-  const gross=revenue-goodsCost;
-  let opex=0,travel=0,other=0;
+  let goods=0,opex=0,travel=0,other=0;
   Store.data.expenses.forEach(e=>{
     if(monthOf(e.date)===month){
-      if(e.major==='營業費用')opex+=(+e.amount||0);
-      else if(e.major==='差旅交通')travel+=(+e.amount||0);
-      else if(e.major==='其他雜費')other+=(+e.amount||0);
-      /* 商品成本分類：僅作支出紀錄，月結不重複扣除 */
+      const a=+e.amount||0;
+      if(e.major==='營業費用')opex+=a;
+      else if(e.major==='差旅交通')travel+=a;
+      else if(e.major==='其他雜費')other+=a;
+      else goods+=a; /* 商品成本（進貨／運費／關稅…）也直接計入支出 */
     }
   });
-  const net=gross-opex-travel-other;
-  return {revenue,goodsCost,gross,opex,travel,other,net};
+  const expense=goods+opex+travel+other;
+  const net=revenue-expense;
+  return {revenue,expense,goods,opex,travel,other,net};
 }
 function allMonths(){
   const set=new Set([currentMonth()]);
@@ -733,7 +747,7 @@ function renderHome(){
       <div class="label">本月成果 · ${esc(m)}</div>
       <div class="row">
         <div class="cell"><div class="t">本月營收</div><div class="v small num">${nt(r.revenue)}</div></div>
-        <div class="cell"><div class="t">本月毛利</div><div class="v small num ${sign(r.gross)}">${nt(r.gross)}</div></div>
+        <div class="cell"><div class="t">本月支出</div><div class="v small num neg">${nt(r.expense)}</div></div>
         <div class="cell"><div class="t">本月淨利</div><div class="v num ${sign(r.net)}">${nt(r.net)}</div></div>
       </div>
     </div>
@@ -770,7 +784,7 @@ function renderProducts(){
         <div class="body">
           <div class="code">${esc(p.baseCode)} · ${esc(catName(p.category))}</div>
           <div class="name">${esc(p.name||'未命名商品')}</div>
-          <div class="meta">${esc(p.vendor||'—')} · 庫存 ${productQty(p)}</div>
+          <div class="meta">${esc(p.vendor||'—')} · 現貨 ${productStock(p)}${productRestock(p)>0?` · <span class="restock">需補貨 ${productRestock(p)}</span>`:''}</div>
           <span class="pill ${statusPill[p.status]||'on'}">${esc(p.status||'上架中')}</span>
         </div>
         <div class="right">
@@ -907,11 +921,11 @@ function renderReport(){
     </div>
     <div class="report-rows">
       <div class="rrow head"><span class="k">營收</span><span class="v num">${nt(r.revenue)}</span></div>
-      <div class="rrow"><span class="k">商品成本（銷售帶出）</span><span class="v num">${nt(r.goodsCost)}</span></div>
-      <div class="rrow total"><span class="k">毛利</span><span class="v num ${r.gross>=0?'pos':'neg'}">${nt(r.gross)}</span></div>
-      <div class="rrow minus"><span class="k">營業費用</span><span class="v num">−${nt(r.opex)}</span></div>
-      <div class="rrow minus"><span class="k">差旅交通</span><span class="v num">−${nt(r.travel)}</span></div>
-      <div class="rrow minus"><span class="k">其他雜費</span><span class="v num">−${nt(r.other)}</span></div>
+      <div class="rrow total"><span class="k">總支出</span><span class="v num neg">−${nt(r.expense)}</span></div>
+      ${r.goods?`<div class="rrow sub"><span class="k">· 商品成本／進貨</span><span class="v num">−${nt(r.goods)}</span></div>`:''}
+      ${r.opex?`<div class="rrow sub"><span class="k">· 營業費用</span><span class="v num">−${nt(r.opex)}</span></div>`:''}
+      ${r.travel?`<div class="rrow sub"><span class="k">· 差旅交通</span><span class="v num">−${nt(r.travel)}</span></div>`:''}
+      ${r.other?`<div class="rrow sub"><span class="k">· 其他雜費</span><span class="v num">−${nt(r.other)}</span></div>`:''}
       <div class="rrow total"><span class="k">淨利</span><span class="v num ${r.net>=0?'pos':'neg'}">${nt(r.net)}</span></div>
     </div>
     <div class="export-row">
@@ -919,7 +933,7 @@ function renderReport(){
       <button class="exp-btn alt" onclick="openExportExcelChoice()">${icoDown} 匯出 Excel</button>
     </div>
     <p style="font-size:12px;color:var(--ink-soft);text-align:center;margin:14px 6px 0;line-height:1.7">
-      商品成本由「銷售數量 × 商品台幣成本」自動帶出，<br>費用表中的進貨類僅作支出紀錄，不重複扣除。
+      即時現金流：淨利 = 營收 − 本月所有支出。<br>每新增一筆銷售或費用，數字會立即更新。
     </p>
   </div>`;
 }
@@ -1004,7 +1018,7 @@ function drawProductForm(){
       <div class="addinline"><input id="sizeIn" placeholder="例：S 或 37" onkeydown="if(event.key==='Enter'){event.preventDefault();pfAddSize()}"><button onclick="pfAddSize()">加入</button></div>
     </div>
 
-    <div class="field"><label>規格與庫存 <span class="opt">系統自動組合，填數量即可</span></label>
+    <div class="field"><label>規格與期初庫存 <span class="opt">數量＝期初庫存，可留 0；現貨會由「期初＋採購−銷售」自動計算</span></label>
       <div class="variant-tbl" id="vTbl">
         ${pf.variants.map((v,i)=>`<div class="vr">
           <span class="vc">${esc(v.code)}</span>
@@ -1097,10 +1111,16 @@ function saleLookupHTML(){
   const hit=findVariant(sf.code);
   if(!hit)return `<div class="lookup-miss">查無此商品編號，請先到商品庫建立。</div>`;
   const c=calcCost(hit.product);const qty=+sf.qty||0;
+  const orig=Store.data.sales.find(s=>s.id===sf.id);
+  const avail=codeStock(sf.code)+(orig&&orig.code===sf.code?(+orig.qty||0):0); // 不含本筆的可用現貨
+  const after=avail-qty;
   return `<div class="lookup-ok">
     <div class="nm">${esc(hit.product.name)}</div>
     <div class="ln"><span>售價</span><b>${nt(c.price)}</b></div>
     <div class="ln"><span>台幣成本</span><b>${nt(c.twd)}</b></div>
+    <div class="ln"><span>目前現貨</span><b>${avail} 件</b></div>
+    ${qty>0?`<div class="ln ${after<0?'warn':''}"><span>售出後庫存</span><b>${after} 件</b></div>`:''}
+    ${after<0?`<div class="ln warn"><span>需補貨</span><b>${-after} 件</b></div>`:''}
     <div class="ln"><span>營收（售價 × ${qty}）</span><b>${nt(c.price*qty)}</b></div>
     <div class="ln"><span>毛利</span><b class="${(c.price-c.twd)*qty>=0?'pos':'neg'}">${nt((c.price-c.twd)*qty)}</b></div>
   </div>`;
@@ -1137,12 +1157,16 @@ function purLookupHTML(){
   if(!hit)return `<div class="lookup-miss">查無此商品編號。</div>`;
   const krw=+hit.product.krwCost||0,rate=+qf.rate||0,qty=+qf.qty||0;
   const twd=rate>0?Math.round(krw/rate):0;
+  const orig=Store.data.purchases.find(p=>p.id===qf.id);
+  const base=codeStock(qf.code)-(orig&&orig.code===qf.code?(+orig.qty||0):0); // 不含本筆
   return `<div class="lookup-ok">
     <div class="nm">${esc(hit.product.name)}</div>
     <div class="ln"><span>韓國廠商</span><b>${esc(hit.product.vendor||'—')}</b></div>
     <div class="ln"><span>韓幣成本</span><b>${krwfmt(krw)}</b></div>
     <div class="ln"><span>台幣成本（韓幣÷匯率）</span><b>${rate>0?nt(twd):'請輸入匯率'}</b></div>
     <div class="ln"><span>採購金額（×${qty}）</span><b>${rate>0?nt(twd*qty):'—'}</b></div>
+    <div class="ln"><span>目前現貨</span><b>${base} 件</b></div>
+    ${qty>0?`<div class="ln"><span>補貨後現貨</span><b>${base+qty} 件</b></div>`:''}
   </div>`;
 }
 function purLookup(){const el=$('purInfo');if(el)el.innerHTML=purLookupHTML();}
@@ -1228,8 +1252,8 @@ function buildSheets(month){
   const P=Store.data.products,S=Store.data.sales,E=Store.data.expenses,Q=Store.data.purchases;
   const inMonth=month?(m=>m===month):(()=>true);
   // 月結（指定月份只列該月一列）
-  const mr=[['月份','營收','商品成本','毛利','營業費用','差旅交通','其他雜費','淨利']];
-  (month?[month]:allMonths().slice().sort()).forEach(m=>{const r=monthlyReport(m);mr.push([m,r.revenue,r.goodsCost,r.gross,r.opex,r.travel,r.other,r.net]);});
+  const mr=[['月份','營收','總支出','商品成本／進貨','營業費用','差旅交通','其他雜費','淨利']];
+  (month?[month]:allMonths().slice().sort()).forEach(m=>{const r=monthlyReport(m);mr.push([m,r.revenue,r.expense,r.goods,r.opex,r.travel,r.other,r.net]);});
   // 銷售
   const sales=[['月份','商品編號','商品名稱','數量','售價','台幣成本','營收','商品成本','毛利']];
   S.filter(s=>inMonth(s.month)).slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).forEach(s=>{const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const rev=c.price*s.qty,cost=c.twd*s.qty;sales.push([s.month,s.code,h?h.product.name:'(查無)',s.qty,c.price,c.twd,rev,cost,rev-cost]);});
@@ -1427,9 +1451,9 @@ function swapProductImg(pid,ci){
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
 function dataUrlParts(d){const m=/^data:image\/(\w+);base64,(.*)$/.exec(d||'');if(m)return{ext:(m[1]==='jpg'?'jpeg':m[1]),b64:m[2]};return{ext:'jpeg',b64:(d||'').split(',').pop()};}
 function exportProductsExcelText(){
-  const head=['商品編號','分類','商品名稱','顏色','尺寸','韓國廠商','狀態','韓幣成本','匯率','台幣成本','售價','庫存','備註'];
+  const head=['商品編號','分類','商品名稱','顏色','尺寸','韓國廠商','狀態','韓幣成本','匯率','台幣成本','售價','現貨','需補貨','備註'];
   const rows=[head];
-  productVariantRows().forEach(({p,v})=>{const c=calcCost(p);rows.push([v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,+v.qty||0,p.note||'']);});
+  productVariantRows().forEach(({p,v})=>{const c=calcCost(p);rows.push([v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']);});
   writeExcel([['商品',rows]],'Eau-Atelier-商品-'+todayStr().replace(/-/g,''));
 }
 function productVariantRows(){
@@ -1452,7 +1476,7 @@ async function exportProductsExcel(){
       {header:'商品名稱',width:22},{header:'顏色',width:10},{header:'尺寸',width:9},
       {header:'韓國廠商',width:14},{header:'狀態',width:10},{header:'韓幣成本',width:11},
       {header:'匯率',width:8},{header:'台幣成本',width:11},{header:'售價',width:11},
-      {header:'庫存',width:8},{header:'備註',width:22}
+      {header:'現貨',width:8},{header:'需補貨',width:8},{header:'備註',width:22}
     ];
     const hr=ws.getRow(1);hr.height=24;hr.font={bold:true,color:{argb:'FFFFFFFF'}};hr.alignment={vertical:'middle',horizontal:'center'};
     hr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFA39279'}};});
@@ -1461,7 +1485,7 @@ async function exportProductsExcel(){
     let r=2;
     for(const {p,v} of productVariantRows()){
       const c=calcCost(p);const row=ws.getRow(r);
-      [,v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,+v.qty||0,p.note||'']
+      [,v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']
         .forEach((val,i)=>{if(i>0)row.getCell(i+1).value=val;});
       row.height=ROWPX*0.75;row.alignment={vertical:'middle'};
       const cover=colorImage(p,v.color);
@@ -1495,12 +1519,13 @@ function exportProductsPDF(){
       <td style="${PDF_TD}">${esc(p.vendor||'')}</td>
       <td style="${PDF_TD};text-align:right">${nt(c.twd)}</td>
       <td style="${PDF_TD};text-align:right">${nt(c.price)}</td>
-      <td style="${PDF_TD};text-align:right">${+v.qty||0}</td>
+      <td style="${PDF_TD};text-align:right">${Math.max(0,variantStock(v))}</td>
+      <td style="${PDF_TD};text-align:right${variantRestock(v)>0?';color:#C0826A;font-weight:700':''}">${variantRestock(v)||'—'}</td>
     </tr>`;
   }).join('');
   const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('商品庫')}
     <table style="width:100%;border-collapse:collapse"><thead><tr>
-      <th style="${PDF_TH}">圖片</th><th style="${PDF_TH}">商品編號</th><th style="${PDF_TH}">商品名稱</th><th style="${PDF_TH}">顏色</th><th style="${PDF_TH}">尺寸</th><th style="${PDF_TH}">韓國廠商</th><th style="${PDF_TH};text-align:right">台幣成本</th><th style="${PDF_TH};text-align:right">售價</th><th style="${PDF_TH};text-align:right">庫存</th>
+      <th style="${PDF_TH}">圖片</th><th style="${PDF_TH}">商品編號</th><th style="${PDF_TH}">商品名稱</th><th style="${PDF_TH}">顏色</th><th style="${PDF_TH}">尺寸</th><th style="${PDF_TH}">韓國廠商</th><th style="${PDF_TH};text-align:right">台幣成本</th><th style="${PDF_TH};text-align:right">售價</th><th style="${PDF_TH};text-align:right">現貨</th><th style="${PDF_TH};text-align:right">需補貨</th>
     </tr></thead><tbody>${rows}</tbody></table>${pdfFooter()}</div>`;
   makePdf(html,'Eau-Atelier-商品-'+todayStr().replace(/-/g,'')+'.pdf',true);
 }
@@ -1524,11 +1549,11 @@ function exportPDF(){
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
       <tr><td style="${td}">營收</td><td style="${tdn}">${nt(r.revenue)}</td></tr>
-      <tr><td style="${td}">商品成本（銷售帶出）</td><td style="${tdn}">${nt(r.goodsCost)}</td></tr>
-      <tr><td style="${td}"><b>毛利</b></td><td style="${tdn}"><b>${nt(r.gross)}</b></td></tr>
-      <tr><td style="${td}">營業費用</td><td style="${tdn}">−${nt(r.opex)}</td></tr>
-      <tr><td style="${td}">差旅交通</td><td style="${tdn}">−${nt(r.travel)}</td></tr>
-      <tr><td style="${td}">其他雜費</td><td style="${tdn}">−${nt(r.other)}</td></tr>
+      <tr><td style="${td}"><b>總支出</b></td><td style="${tdn}"><b>−${nt(r.expense)}</b></td></tr>
+      ${r.goods?`<tr><td style="${td}">　· 商品成本／進貨</td><td style="${tdn}">−${nt(r.goods)}</td></tr>`:''}
+      ${r.opex?`<tr><td style="${td}">　· 營業費用</td><td style="${tdn}">−${nt(r.opex)}</td></tr>`:''}
+      ${r.travel?`<tr><td style="${td}">　· 差旅交通</td><td style="${tdn}">−${nt(r.travel)}</td></tr>`:''}
+      ${r.other?`<tr><td style="${td}">　· 其他雜費</td><td style="${tdn}">−${nt(r.other)}</td></tr>`:''}
       <tr><td style="${td}"><b>淨利</b></td><td style="${tdn}"><b>${nt(r.net)}</b></td></tr>
     </table>
     <div style="font-weight:700;color:#A39279;margin:6px 0 4px">銷售明細</div>
