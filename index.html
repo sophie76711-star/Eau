@@ -73,18 +73,32 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .hero h1{font-family:Poppins;font-weight:600;font-size:30px;margin:0;color:var(--main);letter-spacing:.5px;}
 .hero p{margin:2px 0 0;color:var(--ink-soft);font-size:15px;}
 
-.summary{
-  background:var(--card);border-radius:24px;padding:20px 20px 18px;
-  box-shadow:var(--shadow);margin-bottom:22px;position:relative;overflow:hidden;
-}
-.summary::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(163,146,121,.07);}
-.summary .label{font-size:12px;color:var(--ink-soft);letter-spacing:1px;}
-.summary .row{display:flex;gap:10px;margin-top:12px;}
-.summary .cell{flex:1;}
-.summary .cell .t{font-size:12px;color:var(--ink-soft);}
-.summary .cell .v{font-family:Nunito;font-weight:800;font-size:21px;margin-top:2px;line-height:1.1;}
-.summary .cell .v.small{font-size:18px;}
 .pos{color:var(--sage);} .neg{color:var(--clay);}
+.glance{
+  background:var(--main);color:var(--white);border-radius:24px;padding:20px;
+  box-shadow:0 16px 36px -16px rgba(163,146,121,.85);margin-bottom:20px;position:relative;overflow:hidden;
+}
+.glance::after{content:"";position:absolute;right:-34px;top:-34px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);}
+.glance .g-top{font-size:12px;letter-spacing:1px;opacity:.85;}
+.glance .g-net{display:flex;align-items:baseline;gap:10px;margin:8px 0 15px;}
+.glance .g-net .lab{font-size:13px;opacity:.85;}
+.glance .g-net .amt{font-family:Nunito;font-weight:800;font-size:38px;line-height:1;}
+.glance .g-row{display:flex;gap:10px;border-top:1px solid rgba(255,255,255,.2);padding-top:13px;}
+.glance .g-cell{flex:1;}
+.glance .g-cell .t{font-size:11px;opacity:.8;display:block;margin-bottom:2px;}
+.glance .g-cell .v{font-family:Nunito;font-weight:700;font-size:15px;}
+.report-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+.rcard{
+  border-radius:22px;padding:18px 16px;text-align:left;color:var(--white);background:var(--main);
+  box-shadow:var(--shadow-soft);position:relative;overflow:hidden;
+  transition:transform .18s cubic-bezier(.2,.8,.3,1),box-shadow .18s;
+}
+.rcard:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
+.rcard:active{transform:scale(.97);}
+.rcard .ri{height:40px;margin-bottom:8px;display:flex;align-items:flex-end;}
+.rcard .ri svg{width:38px;height:38px;}
+.rcard .rt{font-weight:700;font-size:16px;}
+.rcard .rs{font-size:12px;opacity:.85;margin-top:2px;}
 
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .tile{
@@ -100,18 +114,6 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 @keyframes hop{0%,100%{transform:translateY(0);}30%{transform:translateY(-6px);}}
 .tile .ttl{font-weight:700;font-size:16px;}
 .tile .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-
-.tile.report{
-  grid-column:1 / -1;background:var(--main);color:var(--white);
-  display:flex;align-items:center;gap:16px;padding:20px;
-  box-shadow:0 14px 34px -14px rgba(163,146,121,.85);
-  animation:glow 3.6s ease-in-out infinite;
-}
-@keyframes glow{0%,100%{box-shadow:0 14px 30px -16px rgba(163,146,121,.7);}50%{box-shadow:0 16px 40px -12px rgba(163,146,121,.95);}}
-.tile.report .ill{height:auto;margin:0;}
-.tile.report .ttl,.tile.report .sub{color:var(--white);}
-.tile.report .sub{opacity:.85;}
-.tile.report .arrow{margin-left:auto;font-size:22px;opacity:.9;}
 
 /* ---------- sub page header ---------- */
 .phead{display:flex;align-items:center;gap:12px;padding:4px 2px 18px;}
@@ -210,11 +212,37 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .rrow.total{margin-top:2px;}
 .rrow.total .k{font-weight:700;color:var(--ink);font-size:16px;}
 .rrow.total .v{font-size:20px;}
-.rrow.minus .v{color:var(--clay);}
 .rrow.sub{padding:9px 0 9px 12px;border-bottom:1px dashed var(--line);}
 .rrow.sub .k{font-size:13px;color:var(--ink-soft);}
 .rrow.sub .v{font-size:14px;font-weight:700;color:var(--clay);}
 .restock{color:var(--clay);font-weight:700;}
+.ov-bar-row{margin:11px 0;}
+.ov-bar-top{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin-bottom:5px;}
+.ov-bar{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;}
+.ov-bar i{display:block;height:100%;background:var(--main);border-radius:99px;}
+.ov-intro{font-size:13px;color:var(--ink-soft);margin:-6px 2px 16px;}
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.kpi{background:var(--card);border-radius:18px;padding:15px;box-shadow:var(--shadow-soft);}
+.kpi .kt{font-size:12px;color:var(--ink-soft);}
+.kpi .kv{font-family:Nunito;font-weight:800;font-size:22px;margin:3px 0;}
+.kpi .ks{font-size:12px;color:var(--ink-soft);}
+.kpi .ks.pos{color:#7E9472;}
+.kpi .ks.neg{color:var(--clay);}
+.ov-card{background:var(--card);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow-soft);}
+.ov-h{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:15px;color:var(--ink);margin-bottom:12px;}
+.ov-legend{font-size:12px;color:var(--ink-soft);font-weight:400;display:flex;align-items:center;gap:6px;}
+.ov-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;}
+.dot.rev{background:#7E9472;}
+.dot.exp{background:var(--clay);}
+.ov-note{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px;}
+.ov-cnt{font-size:13px;color:var(--ink-soft);font-weight:400;}
+.rs-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);}
+.rs-row:last-child{border-bottom:none;}
+.rs-l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rs-code{font-family:Nunito;font-weight:700;color:var(--main);margin-right:6px;}
+.rs-nm{font-size:13px;color:var(--ink-soft);}
+.rs-q{font-family:Nunito;font-weight:700;color:var(--clay);white-space:nowrap;}
+.rs-empty{color:var(--ink-soft);font-size:13px;padding:6px 0;}
 .lookup-ok .ln.warn b,.lookup-ok .ln.warn span{color:var(--clay);font-weight:700;}
 
 /* month chips */
@@ -349,19 +377,6 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
   body{background:#fff;}
   .app,.sheet,.sheet-bg,.toast{display:none!important;}
   #printRoot{display:block!important;color:#1F1F1F;font-family:"Noto Sans TC",sans-serif;}
-  #printRoot .pr-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:12px;margin-bottom:18px;}
-  #printRoot .pr-brand{font-family:Poppins,sans-serif;font-size:22px;color:#A39279;font-weight:600;}
-  #printRoot .pr-brand small{display:block;font-size:11px;color:#7A7167;letter-spacing:3px;}
-  #printRoot .pr-month{font-family:Nunito,sans-serif;font-weight:800;font-size:18px;}
-  #printRoot .pr-net{background:#A39279;color:#fff;border-radius:14px;padding:18px 20px;margin-bottom:18px;}
-  #printRoot .pr-net .l{font-size:13px;opacity:.9;}
-  #printRoot .pr-net .v{font-family:Nunito,sans-serif;font-weight:800;font-size:30px;}
-  #printRoot table{width:100%;border-collapse:collapse;margin:6px 0 20px;font-size:13px;}
-  #printRoot th,#printRoot td{text-align:left;padding:8px 6px;border-bottom:1px solid #E8E1D8;}
-  #printRoot th{color:#7A7167;font-weight:700;}
-  #printRoot td.n,#printRoot th.n{text-align:right;font-family:Nunito,sans-serif;}
-  #printRoot h4{font-size:14px;margin:18px 0 4px;color:#A39279;}
-  #printRoot .pr-foot{margin-top:24px;font-size:11px;color:#7A7167;text-align:center;}
 }
 </style>
 </head>
@@ -560,24 +575,31 @@ function allCodes(){
 }
 
 /* ---------- 月結計算（現金流：營收 − 全部支出 = 淨利） ---------- */
+/* 共用計算：售出單筆營收/成本/毛利、採購單筆台幣成本、費用分桶。改公式只要改這裡。 */
+function saleCalc(s){
+  const h=findVariant(s.code);
+  const c=h?calcCost(h.product):{price:0,twd:0};
+  const qty=+s.qty||0;
+  return {h,product:h?h.product:null,c,qty,rev:c.price*qty,cost:c.twd*qty,profit:(c.price-c.twd)*qty};
+}
+function purchaseTwd(q){
+  const h=findVariant(q.code);
+  const krw=h?(+h.product.krwCost||0):0;
+  const rate=+q.rate||0;
+  return rate>0?Math.round(krw/rate):0;
+}
+function expBucket(major){
+  if(major==='營業費用')return 'opex';
+  if(major==='差旅交通')return 'travel';
+  if(major==='其他雜費')return 'other';
+  return 'goods'; /* 商品成本（進貨／運費／關稅…） */
+}
 function monthlyReport(month){
   let revenue=0;
-  Store.data.sales.forEach(s=>{
-    if(s.month===month){
-      const hit=findVariant(s.code);
-      if(hit){const c=calcCost(hit.product);revenue+=c.price*s.qty;}
-    }
-  });
-  let goods=0,opex=0,travel=0,other=0;
-  Store.data.expenses.forEach(e=>{
-    if(monthOf(e.date)===month){
-      const a=+e.amount||0;
-      if(e.major==='營業費用')opex+=a;
-      else if(e.major==='差旅交通')travel+=a;
-      else if(e.major==='其他雜費')other+=a;
-      else goods+=a; /* 商品成本（進貨／運費／關稅…）也直接計入支出 */
-    }
-  });
+  Store.data.sales.forEach(s=>{if(s.month===month)revenue+=saleCalc(s).rev;});
+  const b={goods:0,opex:0,travel:0,other:0};
+  Store.data.expenses.forEach(e=>{if(monthOf(e.date)===month)b[expBucket(e.major)]+=(+e.amount||0);});
+  const {goods,opex,travel,other}=b;
   const expense=goods+opex+travel+other;
   const net=revenue-expense;
   return {revenue,expense,goods,opex,travel,other,net};
@@ -589,6 +611,24 @@ function allMonths(){
   Store.data.expenses.forEach(e=>set.add(monthOf(e.date)));
   return [...set].filter(Boolean).sort().reverse();
 }
+/* ---------- 經營總覽：跨月／累計／庫存 ---------- */
+function shiftMonth(month,delta){const a=(month||currentMonth()).split('/').map(Number);const d=new Date(a[0],a[1]-1+delta,1);return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0');}
+function lastMonths(n){const out=[];const now=currentMonth();for(let i=n-1;i>=0;i--)out.push(shiftMonth(now,-i));return out;}
+function cumulativeReport(){
+  let revenue=0;Store.data.sales.forEach(s=>revenue+=saleCalc(s).rev);
+  let expense=0;Store.data.expenses.forEach(e=>expense+=(+e.amount||0));
+  return {revenue,expense,net:revenue-expense};
+}
+function inventoryValue(){
+  let val=0,units=0;
+  Store.data.products.forEach(p=>{const twd=calcCost(p).twd;(p.variants||[]).forEach(v=>{const st=Math.max(0,variantStock(v));val+=st*twd;units+=st;});});
+  return {val,units};
+}
+function restockList(){
+  const out=[];
+  Store.data.products.forEach(p=>(p.variants||[]).forEach(v=>{const q=variantRestock(v);if(q>0)out.push({code:v.code,name:p.name,color:v.color||'',size:v.size||'',qty:q});}));
+  return out.sort((a,b)=>b.qty-a.qty);
+}
 
 /* =========================================================
    插畫（純 SVG，無 emoji）
@@ -599,10 +639,10 @@ const ILL={
   sales:`<svg viewBox="0 0 64 64" fill="none"><path d="M16 24h32l-3 28a4 4 0 0 1-4 3.6H23a4 4 0 0 1-4-3.6L16 24z" fill="#fff" stroke="${M}" stroke-width="2.4" stroke-linejoin="round"/><path d="M24 24c0-7 3.6-12 8-12s8 5 8 12" stroke="${M}" stroke-width="2.4" stroke-linecap="round"/><circle cx="40" cy="36" r="3" fill="${SOFT}"/></svg>`,
   expense:`<svg viewBox="0 0 64 64" fill="none"><path d="M18 12h28v40l-5-3-5 3-4-3-4 3-5-3-5 3V12z" fill="#fff" stroke="${M}" stroke-width="2.4" stroke-linejoin="round"/><path d="M24 22h16M24 30h16M24 38h10" stroke="${M}" stroke-width="2" stroke-linecap="round" opacity=".6"/></svg>`,
   purchase:`<svg viewBox="0 0 64 64" fill="none"><path d="M12 22l20-8 20 8-20 8-20-8z" fill="${SOFT}" opacity=".5" stroke="${M}" stroke-width="2.4" stroke-linejoin="round"/><path d="M12 22v22l20 8V30M52 22v22l-20 8" stroke="${M}" stroke-width="2.4" stroke-linejoin="round" fill="#fff" fill-opacity=".0"/><rect x="26" y="30" width="12" height="9" rx="2" fill="#fff" stroke="${M}" stroke-width="1.8"/></svg>`,
-  report:`<svg viewBox="0 0 64 64" fill="none"><path d="M20 16h24v6a12 12 0 0 1-24 0v-6z" fill="#fff" fill-opacity=".18" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 19h-5a5 5 0 0 0 5 7M44 19h5a5 5 0 0 1-5 7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M32 34v8M24 48h16l-2-6H26l-2 6z" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg>`
+  report:`<svg viewBox="0 0 64 64" fill="none"><path d="M20 16h24v6a12 12 0 0 1-24 0v-6z" fill="#fff" fill-opacity=".18" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/><path d="M20 19h-5a5 5 0 0 0 5 7M44 19h5a5 5 0 0 1-5 7" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M32 34v8M24 48h16l-2-6H26l-2 6z" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/></svg>`,
+  overview:`<svg viewBox="0 0 64 64" fill="none"><path d="M14 50h36" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><rect x="18" y="34" width="6" height="14" rx="2" fill="#fff" fill-opacity=".25" stroke="#fff" stroke-width="2"/><rect x="29" y="26" width="6" height="22" rx="2" fill="#fff" fill-opacity=".25" stroke="#fff" stroke-width="2"/><rect x="40" y="18" width="6" height="30" rx="2" fill="#fff" fill-opacity=".4" stroke="#fff" stroke-width="2"/><path d="M16 30l10-8 8 5 12-12" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/></svg>`
 };
 const emptyIll=`<svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="22" stroke="${SOFT}" stroke-width="2.4"/><path d="M24 30c1.5 1.5 3 1.5 4 0M36 30c1.5 1.5 3 1.5 4 0M25 40c3-3 11-3 14 0" stroke="${M}" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-const photoIll=`<svg viewBox="0 0 64 64" fill="none"><rect x="14" y="20" width="36" height="26" rx="4" stroke="${M}" stroke-width="2"/><circle cx="32" cy="33" r="7" stroke="${M}" stroke-width="2"/></svg>`;
 
 const icoHome=`<svg viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1v-8z" stroke="${M}" stroke-width="2" stroke-linejoin="round"/></svg>`;
 const icoBack=`<svg viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="${M}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -635,6 +675,7 @@ function render(){
   else if(route==='expenses')html+=renderExpenses();
   else if(route==='purchases')html+=renderPurchases();
   else if(route==='report')html+=renderReport();
+  else if(route==='overview')html+=renderOverview();
   app.innerHTML=html;
 }
 
@@ -731,7 +772,12 @@ function exportRow(section){
 function renderHome(){
   const m=currentMonth();
   const r=monthlyReport(m);
+  const lastNet=monthlyReport(shiftMonth(m,-1)).net;
+  const delta=r.net-lastNet;
   const sign=v=>v>0?'pos':(v<0?'neg':'');
+  const hr=new Date().getHours();
+  const greet=hr<5?'夜深了':hr<11?'早安':hr<14?'午安':hr<18?'下午好':'晚安';
+  const deltaTxt=delta===0?'持平':`${delta>0?'↑':'↓'} ${nt(Math.abs(delta))}`;
   const tiles=[
     {r:'products',ill:ILL.product,t:'商品庫',s:'建立商品、管理售價'},
     {r:'sales',ill:ILL.sales,t:'銷售紀錄',s:'記錄本月賣出數量'},
@@ -740,15 +786,16 @@ function renderHome(){
   ];
   return `<div class="page">
     <div class="hero">
-      <h1>歡迎回來</h1>
+      <h1>${greet}</h1>
       <p>${m.replace('/','年')}月 · 今天也好好經營小店 ✦</p>
     </div>
-    <div class="summary">
-      <div class="label">本月成果 · ${esc(m)}</div>
-      <div class="row">
-        <div class="cell"><div class="t">本月營收</div><div class="v small num">${nt(r.revenue)}</div></div>
-        <div class="cell"><div class="t">本月支出</div><div class="v small num neg">${nt(r.expense)}</div></div>
-        <div class="cell"><div class="t">本月淨利</div><div class="v num ${sign(r.net)}">${nt(r.net)}</div></div>
+    <div class="glance">
+      <div class="g-top">本月成果 · ${esc(m)}</div>
+      <div class="g-net"><span class="lab">本月淨利</span><span class="amt">${nt(r.net)}</span></div>
+      <div class="g-row">
+        <div class="g-cell"><span class="t">營收</span><span class="v">${nt(r.revenue)}</span></div>
+        <div class="g-cell"><span class="t">支出</span><span class="v">${nt(r.expense)}</span></div>
+        <div class="g-cell"><span class="t">vs 上月</span><span class="v">${deltaTxt}</span></div>
       </div>
     </div>
     <div class="grid">
@@ -756,10 +803,15 @@ function renderHome(){
         <div class="ill">${t.ill}</div>
         <div class="ttl">${t.t}</div><div class="sub">${t.s}</div>
       </button>`).join('')}
-      <button class="tile report" onclick="go('report')">
-        <div class="ill">${ILL.report}</div>
-        <div><div class="ttl">月結報表</div><div class="sub">查看本月成果</div></div>
-        <div class="arrow">→</div>
+    </div>
+    <div class="report-row">
+      <button class="rcard" onclick="go('report')">
+        <div class="ri">${ILL.report}</div>
+        <div class="rt">月結報表</div><div class="rs">本月成果</div>
+      </button>
+      <button class="rcard" onclick="go('overview')">
+        <div class="ri">${ILL.overview}</div>
+        <div class="rt">經營總覽</div><div class="rs">累計・趨勢・補貨</div>
       </button>
     </div>
   </div>`;
@@ -883,9 +935,8 @@ function renderPurchases(){
       const hit=findVariant(p.code);
       const name=hit?hit.product.name:'（查無此商品編號）';
       const vendor=hit?(hit.product.vendor||'—'):'—';
-      const krw=hit?(+hit.product.krwCost||0):0;
       const rate=+p.rate||0;
-      const twd=rate>0?Math.round(krw/rate):0;
+      const twd=purchaseTwd(p);
       const when=p.date||p.month||'';
       return `<div class="rowitem">
         <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(p.code)}</span></div>
@@ -906,11 +957,16 @@ function renderPurchases(){
 
 /* ---------- 月結報表（本月成績單） ---------- */
 function renderReport(){
+  return `<div class="page">
+    <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button><h2>月結報表</h2></div>
+    ${monthBody()}
+  </div>`;
+}
+function monthBody(){
   const months=allMonths();
   const r=monthlyReport(reportMonth);
   const netSign=r.net>0?'本月有賺 ✦':(r.net<0?'本月先投資未來':'打平');
-  return `<div class="page">
-    <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button><h2>月結報表</h2></div>
+  return `
     <div class="monthrow">
       ${months.map(m=>`<button class="mchip ${m===reportMonth?'active':''}" onclick="reportMonth='${m}';render()">${esc(m)}</button>`).join('')}
     </div>
@@ -922,10 +978,10 @@ function renderReport(){
     <div class="report-rows">
       <div class="rrow head"><span class="k">營收</span><span class="v num">${nt(r.revenue)}</span></div>
       <div class="rrow total"><span class="k">總支出</span><span class="v num neg">−${nt(r.expense)}</span></div>
-      ${r.goods?`<div class="rrow sub"><span class="k">· 商品成本／進貨</span><span class="v num">−${nt(r.goods)}</span></div>`:''}
-      ${r.opex?`<div class="rrow sub"><span class="k">· 營業費用</span><span class="v num">−${nt(r.opex)}</span></div>`:''}
-      ${r.travel?`<div class="rrow sub"><span class="k">· 差旅交通</span><span class="v num">−${nt(r.travel)}</span></div>`:''}
-      ${r.other?`<div class="rrow sub"><span class="k">· 其他雜費</span><span class="v num">−${nt(r.other)}</span></div>`:''}
+      <div class="rrow sub"><span class="k">· 商品成本／進貨</span><span class="v num">−${nt(r.goods)}</span></div>
+      <div class="rrow sub"><span class="k">· 營業費用</span><span class="v num">−${nt(r.opex)}</span></div>
+      <div class="rrow sub"><span class="k">· 差旅交通</span><span class="v num">−${nt(r.travel)}</span></div>
+      <div class="rrow sub"><span class="k">· 其他雜費</span><span class="v num">−${nt(r.other)}</span></div>
       <div class="rrow total"><span class="k">淨利</span><span class="v num ${r.net>=0?'pos':'neg'}">${nt(r.net)}</span></div>
     </div>
     <div class="export-row">
@@ -934,8 +990,89 @@ function renderReport(){
     </div>
     <p style="font-size:12px;color:var(--ink-soft);text-align:center;margin:14px 6px 0;line-height:1.7">
       即時現金流：淨利 = 營收 − 本月所有支出。<br>每新增一筆銷售或費用，數字會立即更新。
-    </p>
+    </p>`;
+}
+function overviewData(){
+  let rev=0;
+  Store.data.sales.forEach(s=>rev+=saleCalc(s).rev);
+  const LBL={goods:'進貨／商品成本',opex:'營業費用',travel:'差旅交通',other:'其他雜費'};
+  let exp=0;const byCat={'進貨／商品成本':0,'營業費用':0,'差旅交通':0,'其他雜費':0};
+  Store.data.expenses.forEach(e=>{const a=+e.amount||0;exp+=a;byCat[LBL[expBucket(e.major)]]+=a;});
+  let stockQty=0,stockValue=0;const restock=[];
+  Store.data.products.forEach(p=>{const c=calcCost(p);(p.variants||[]).forEach(v=>{const st=variantStock(v);if(st>0){stockQty+=st;stockValue+=st*c.twd;}const rs=variantRestock(v);if(rs>0)restock.push({code:v.code,name:p.name,color:v.color,size:v.size,qty:rs});});});
+  const agg={};
+  Store.data.sales.forEach(s=>{const sc=saleCalc(s);if(!agg[s.code])agg[s.code]={code:s.code,name:sc.product?sc.product.name:'(查無)',qty:0,profit:0};agg[s.code].qty+=sc.qty;agg[s.code].profit+=sc.profit;});
+  const top=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,5);
+  const trend=allMonths().slice().sort().map(m=>({m,...monthlyReport(m)}));
+  return {rev,exp,net:rev-exp,byCat,stockQty,stockValue,restock,top,trend};
+}
+/* ---------- 經營總覽（V1：關鍵數字 + 趨勢圖 + 需補貨） ---------- */
+function trendChartSVG(){
+  const months=lastMonths(6);
+  const data=months.map(m=>({m,r:monthlyReport(m)}));
+  const max=Math.max(1,...data.map(d=>Math.max(d.r.revenue,d.r.expense)));
+  const W=336,H=158,padX=14,bottom=34,top=8;
+  const gw=(W-padX*2)/months.length, bw=Math.min(16,gw*0.3), chartH=H-bottom-top;
+  let svg='';
+  data.forEach((d,i)=>{
+    const gx=padX+i*gw+gw/2;
+    const rH=Math.round(d.r.revenue/max*chartH), eH=Math.round(d.r.expense/max*chartH);
+    svg+=`<rect x="${(gx-bw-1).toFixed(1)}" y="${top+chartH-rH}" width="${bw}" height="${rH}" rx="3" fill="#7E9472"/>`;
+    svg+=`<rect x="${(gx+1).toFixed(1)}" y="${top+chartH-eH}" width="${bw}" height="${eH}" rx="3" fill="#C0826A"/>`;
+    const mm=d.m.split('/')[1];
+    svg+=`<text x="${gx.toFixed(1)}" y="${top+chartH+14}" text-anchor="middle" font-size="10" fill="#7A7167">${mm}月</text>`;
+    const nc=d.r.net>=0?'#7E9472':'#C0826A';
+    svg+=`<text x="${gx.toFixed(1)}" y="${top+chartH+26}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${nc}">${d.r.net>=0?'+':'−'}${Math.abs(Math.round(d.r.net)).toLocaleString('en-US')}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
+}
+function renderOverview(){
+  const cum=cumulativeReport();
+  const tm=monthlyReport(currentMonth()), lm=monthlyReport(shiftMonth(currentMonth(),-1));
+  const delta=tm.net-lm.net;
+  const inv=inventoryValue();
+  const restock=restockList();
+  const sgn=v=>v>0?'pos':(v<0?'neg':'');
+  const deltaTxt=delta===0?'與上月持平':`${delta>0?'↑':'↓'} ${nt(Math.abs(delta))} vs 上月`;
+  return `<div class="page">
+    <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button><h2>經營總覽</h2></div>
+    <div class="ov-intro">開店至今的累計成績、庫存與補貨一覽</div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kt">累計淨利</div><div class="kv num ${sgn(cum.net)}">${nt(cum.net)}</div><div class="ks">營收 ${nt(cum.revenue)}・支出 ${nt(cum.expense)}</div></div>
+      <div class="kpi"><div class="kt">本月淨利</div><div class="kv num ${sgn(tm.net)}">${nt(tm.net)}</div><div class="ks ${delta>0?'pos':(delta<0?'neg':'')}">${deltaTxt}</div></div>
+      <div class="kpi"><div class="kt">庫存總值</div><div class="kv num">${nt(inv.val)}</div><div class="ks">現貨 ${inv.units} 件</div></div>
+      <div class="kpi"><div class="kt">需補貨項目</div><div class="kv num ${restock.length?'neg':'pos'}">${restock.length}</div><div class="ks">${restock.length?'共需補 '+restock.reduce((s,x)=>s+x.qty,0)+' 件':'庫存充足 ✓'}</div></div>
+    </div>
+
+    <div class="ov-card">
+      <div class="ov-h"><span>需補貨清單</span><span class="ov-cnt">${restock.length} 項</span></div>
+      ${restock.length?restock.map(x=>{const spec=[x.color,x.size].filter(Boolean).join(' ');return `<div class="rs-row">
+        <div class="rs-l"><span class="rs-code">${esc(x.code)}</span><span class="rs-nm">${esc(x.name||'未命名')}${spec?' · '+esc(spec):''}</span></div>
+        <div class="rs-q">需補 <b>${x.qty}</b></div>
+      </div>`;}).join(''):`<div class="rs-empty">目前沒有需要補貨的商品 ✓</div>`}
+    </div>
+
+    <div class="ov-card">
+      <div class="ov-h"><span>近 6 個月趨勢</span>
+        <span class="ov-legend"><i class="dot rev"></i>營收 <i class="dot exp"></i>支出</span></div>
+      ${trendChartSVG()}
+      <div class="ov-note">數字為各月淨利(綠=賺 / 橘=虧)</div>
+    </div>
+    ${overviewExtraSections()}
   </div>`;
+}
+function overviewExtraSections(){
+  const d=overviewData();
+  const top=d.top.length
+    ? d.top.map((t,i)=>`<div class="rs-row"><div class="rs-l"><span class="rs-code">${i+1}.</span><span class="rs-nm">${esc(t.name||'未命名')} · ${esc(t.code)}</span></div><div class="rs-q" style="color:var(--ink)">售 ${t.qty}・利 ${nt(t.profit)}</div></div>`).join('')
+    : `<div class="rs-empty">還沒有銷售紀錄</div>`;
+  const cats=Object.entries(d.byCat).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const exp=cats.length
+    ? cats.map(([k,v])=>{const pct=d.exp>0?Math.round(v/d.exp*100):0;return `<div class="ov-bar-row"><div class="ov-bar-top"><span>${esc(k)}</span><span>${nt(v)}・${pct}%</span></div><div class="ov-bar"><i style="width:${pct}%"></i></div></div>`;}).join('')
+    : `<div class="rs-empty">還沒有費用紀錄</div>`;
+  return `<div class="ov-card"><div class="ov-h"><span>熱賣排行 Top 5</span></div>${top}</div>
+    <div class="ov-card"><div class="ov-h"><span>支出結構</span></div>${exp}</div>`;
 }
 
 /* =========================================================
@@ -1156,7 +1293,7 @@ function purLookupHTML(){
   const hit=findVariant(qf.code);
   if(!hit)return `<div class="lookup-miss">查無此商品編號。</div>`;
   const krw=+hit.product.krwCost||0,rate=+qf.rate||0,qty=+qf.qty||0;
-  const twd=rate>0?Math.round(krw/rate):0;
+  const twd=purchaseTwd(qf);
   const orig=Store.data.purchases.find(p=>p.id===qf.id);
   const base=codeStock(qf.code)-(orig&&orig.code===qf.code?(+orig.qty||0):0); // 不含本筆
   return `<div class="lookup-ok">
@@ -1256,13 +1393,13 @@ function buildSheets(month){
   (month?[month]:allMonths().slice().sort()).forEach(m=>{const r=monthlyReport(m);mr.push([m,r.revenue,r.expense,r.goods,r.opex,r.travel,r.other,r.net]);});
   // 銷售
   const sales=[['月份','商品編號','商品名稱','數量','售價','台幣成本','營收','商品成本','毛利']];
-  S.filter(s=>inMonth(s.month)).slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).forEach(s=>{const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const rev=c.price*s.qty,cost=c.twd*s.qty;sales.push([s.month,s.code,h?h.product.name:'(查無)',s.qty,c.price,c.twd,rev,cost,rev-cost]);});
+  S.filter(s=>inMonth(s.month)).slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).forEach(s=>{const sc=saleCalc(s);sales.push([s.month,s.code,sc.product?sc.product.name:'(查無)',sc.qty,sc.c.price,sc.c.twd,sc.rev,sc.cost,sc.profit]);});
   // 費用
   const exp=[['日期','大分類','小分類','幣別','原始金額','匯率','台幣金額','備註','照片']];
   E.filter(e=>inMonth(monthOf(e.date))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(e=>{const cur=e.currency||'TWD';exp.push([e.date,e.major,e.minor||'',cur,(e.inputAmount!==undefined?e.inputAmount:e.amount),(cur==='KRW'?(e.rate||''):''),+e.amount||0,e.note||'',e.photo?'有':'']);});
   // 採購
   const pur=[['日期','商品編號','商品名稱','韓國廠商','採購匯率','數量','台幣成本','採購金額']];
-  Q.filter(q=>inMonth(q.date?monthOf(q.date):q.month)).slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).forEach(q=>{const h=findVariant(q.code);const krw=h?(+h.product.krwCost||0):0;const rate=+q.rate||0;const twd=rate>0?Math.round(krw/rate):0;pur.push([q.date||q.month||'',q.code,h?h.product.name:'(查無)',h?(h.product.vendor||''):'',rate||'',q.qty,twd,twd*q.qty]);});
+  Q.filter(q=>inMonth(q.date?monthOf(q.date):q.month)).slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).forEach(q=>{const h=findVariant(q.code);const rate=+q.rate||0;const twd=purchaseTwd(q);pur.push([q.date||q.month||'',q.code,h?h.product.name:'(查無)',h?(h.product.vendor||''):'',rate||'',q.qty,twd,twd*q.qty]);});
   // 指定月份：只給該月四張表
   if(month)return [['月結',mr],['銷售',sales],['費用',exp],['採購',pur]];
   // 全部：再附上商品主檔與規格庫存，作為完整備份
@@ -1376,15 +1513,15 @@ function pdfImgBox(cover,w,h){return cover?`<img src="${cover}" style="width:${w
 function exportSalesPDF(){
   if(!Store.data.sales.length){toast('銷售紀錄目前沒有資料');return;}
   const rows=Store.data.sales.slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).map(s=>{
-    const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};const cover=h?colorImage(h.product,h.variant.color):null;
+    const sc=saleCalc(s);const h=sc.h;const cover=h?colorImage(h.product,h.variant.color):null;
     return `<tr>
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(s.month)}</td>
       <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(s.code)}</td>
-      <td style="${PDF_TD}">${esc(h?h.product.name:'(查無)')}</td>
-      <td style="${PDF_TD};text-align:right">${s.qty}</td>
-      <td style="${PDF_TD};text-align:right">${nt(c.price*s.qty)}</td>
-      <td style="${PDF_TD};text-align:right">${nt((c.price-c.twd)*s.qty)}</td>
+      <td style="${PDF_TD}">${esc(sc.product?sc.product.name:'(查無)')}</td>
+      <td style="${PDF_TD};text-align:right">${sc.qty}</td>
+      <td style="${PDF_TD};text-align:right">${nt(sc.rev)}</td>
+      <td style="${PDF_TD};text-align:right">${nt(sc.profit)}</td>
     </tr>`;
   }).join('');
   const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">${pdfHeader('銷售紀錄')}
@@ -1396,7 +1533,7 @@ function exportSalesPDF(){
 function exportPurchasePDF(){
   if(!Store.data.purchases.length){toast('採購紀錄目前沒有資料');return;}
   const rows=Store.data.purchases.slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).map(q=>{
-    const h=findVariant(q.code);const krw=h?(+h.product.krwCost||0):0;const rate=+q.rate||0;const twd=rate>0?Math.round(krw/rate):0;const cover=h?colorImage(h.product,h.variant.color):null;
+    const h=findVariant(q.code);const twd=purchaseTwd(q);const cover=h?colorImage(h.product,h.variant.color):null;
     return `<tr>
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(q.date||q.month||'')}</td>
@@ -1440,14 +1577,6 @@ function productCover(p){
   return (p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;
 }
 function colorImage(p,color){return (p.colorImages&&p.colorImages[color])||(p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;}
-function swapProductImg(pid,ci){
-  const p=Store.data.products.find(x=>x.id===pid);if(!p)return;
-  const src=colorImage(p,(p.colors||[])[ci]);
-  const box=document.querySelector('[data-pimg="'+pid+'"]');
-  if(box)box.innerHTML=src?'<img src="'+src+'" style="width:100%;height:100%;object-fit:cover">':ILL.product;
-  document.querySelectorAll('[data-pchip="'+pid+'"]').forEach(c=>c.classList.remove('on'));
-  const chip=document.querySelector('[data-pchip="'+pid+'"][data-ci="'+ci+'"]');if(chip)chip.classList.add('on');
-}
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
 function dataUrlParts(d){const m=/^data:image\/(\w+);base64,(.*)$/.exec(d||'');if(m)return{ext:(m[1]==='jpg'?'jpeg':m[1]),b64:m[2]};return{ext:'jpeg',b64:(d||'').split(',').pop()};}
 function exportProductsExcelText(){
@@ -1536,7 +1665,7 @@ function exportPDF(){
   const td='padding:7px 9px;border-bottom:1px solid #E8E1D8;font-size:12px';
   const tdn=td+';text-align:right;font-family:Nunito,sans-serif';
   const th='text-align:left;padding:7px 9px;border-bottom:2px solid #A39279;color:#7A7167;font-size:12px';
-  const salesRows=sales.length?sales.map(s=>{const h=findVariant(s.code);const c=h?calcCost(h.product):{price:0,twd:0};return `<tr><td style="${td}">${esc(s.code)}</td><td style="${td}">${esc(h?h.product.name:'(查無)')}</td><td style="${tdn}">${s.qty}</td><td style="${tdn}">${nt(c.price*s.qty)}</td><td style="${tdn}">${nt((c.price-c.twd)*s.qty)}</td></tr>`;}).join(''):`<tr><td colspan="5" style="${td};color:#7A7167">本月沒有銷售紀錄</td></tr>`;
+  const salesRows=sales.length?sales.map(s=>{const sc=saleCalc(s);return `<tr><td style="${td}">${esc(s.code)}</td><td style="${td}">${esc(sc.product?sc.product.name:'(查無)')}</td><td style="${tdn}">${sc.qty}</td><td style="${tdn}">${nt(sc.rev)}</td><td style="${tdn}">${nt(sc.profit)}</td></tr>`;}).join(''):`<tr><td colspan="5" style="${td};color:#7A7167">本月沒有銷售紀錄</td></tr>`;
   const expRows=exps.length?exps.map(e=>`<tr><td style="${td}">${esc(e.date)}</td><td style="${td}">${esc(e.major)}</td><td style="${td}">${esc(e.minor||'')}</td><td style="${tdn}">${nt(e.amount)}</td></tr>`).join(''):`<tr><td colspan="4" style="${td};color:#7A7167">本月沒有費用紀錄</td></tr>`;
   const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">
     <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:10px;margin-bottom:14px">
@@ -1550,17 +1679,17 @@ function exportPDF(){
     <table style="width:100%;border-collapse:collapse;margin-bottom:18px">
       <tr><td style="${td}">營收</td><td style="${tdn}">${nt(r.revenue)}</td></tr>
       <tr><td style="${td}"><b>總支出</b></td><td style="${tdn}"><b>−${nt(r.expense)}</b></td></tr>
-      ${r.goods?`<tr><td style="${td}">　· 商品成本／進貨</td><td style="${tdn}">−${nt(r.goods)}</td></tr>`:''}
-      ${r.opex?`<tr><td style="${td}">　· 營業費用</td><td style="${tdn}">−${nt(r.opex)}</td></tr>`:''}
-      ${r.travel?`<tr><td style="${td}">　· 差旅交通</td><td style="${tdn}">−${nt(r.travel)}</td></tr>`:''}
-      ${r.other?`<tr><td style="${td}">　· 其他雜費</td><td style="${tdn}">−${nt(r.other)}</td></tr>`:''}
+      <tr><td style="${td}">　· 商品成本／進貨</td><td style="${tdn}">−${nt(r.goods)}</td></tr>
+      <tr><td style="${td}">　· 營業費用</td><td style="${tdn}">−${nt(r.opex)}</td></tr>
+      <tr><td style="${td}">　· 差旅交通</td><td style="${tdn}">−${nt(r.travel)}</td></tr>
+      <tr><td style="${td}">　· 其他雜費</td><td style="${tdn}">−${nt(r.other)}</td></tr>
       <tr><td style="${td}"><b>淨利</b></td><td style="${tdn}"><b>${nt(r.net)}</b></td></tr>
     </table>
     <div style="font-weight:700;color:#A39279;margin:6px 0 4px">銷售明細</div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:16px"><thead><tr><th style="${th}">商品編號</th><th style="${th}">名稱</th><th style="${th};text-align:right">數量</th><th style="${th};text-align:right">營收</th><th style="${th};text-align:right">毛利</th></tr></thead><tbody>${salesRows}</tbody></table>
     <div style="font-weight:700;color:#A39279;margin:6px 0 4px">費用明細</div>
     <table style="width:100%;border-collapse:collapse"><thead><tr><th style="${th}">日期</th><th style="${th}">大分類</th><th style="${th}">小分類</th><th style="${th};text-align:right">金額</th></tr></thead><tbody>${expRows}</tbody></table>
-    <div style="margin-top:18px;font-size:11px;color:#7A7167;text-align:center">由 Eau Atelier 產生 · ${esc(todayStr())}　商品成本依「銷售數量 × 台幣成本」計算，進貨類費用不重複扣除</div>
+    <div style="margin-top:18px;font-size:11px;color:#7A7167;text-align:center">由 Eau Atelier 產生 · ${esc(todayStr())}　淨利 = 營收 − 本月所有支出（含進貨／運費／手續費）</div>
   </div>`;
   makePdf(html,'Eau-Atelier-月結-'+m.replace('/','-')+'.pdf',false);
 }
