@@ -641,7 +641,10 @@ function inventoryValue(){
 }
 function restockList(){
   const out=[];
-  Store.data.products.forEach(p=>(p.variants||[]).forEach(v=>{const q=variantRestock(v);if(q>0)out.push({code:v.code,name:p.name,color:v.color||'',size:v.size||'',qty:q});}));
+  Store.data.products.forEach(p=>{
+    if(p.status==='已下架')return; // 已下架不列入補貨清單
+    (p.variants||[]).forEach(v=>{const q=variantRestock(v);if(q>0)out.push({code:v.code,name:p.name,color:v.color||'',size:v.size||'',qty:q});});
+  });
   return out.sort((a,b)=>b.qty-a.qty);
 }
 
@@ -867,7 +870,8 @@ function renderProducts(){
             <button onclick="openProductForm('${p.id}')">編輯</button>
             <button class="del" onclick="removeProduct('${p.id}')">刪除</button>
           </div>
-        </div>`;
+        </div>
+      </div>`;
     }).join('');
   }
   return `<div class="page">
@@ -1032,7 +1036,7 @@ function overviewData(){
   let exp=0;const byCat={'進貨／商品成本':0,'營業費用':0,'差旅交通':0,'其他雜費':0};
   Store.data.expenses.forEach(e=>{const a=+e.amount||0;exp+=a;byCat[LBL[expBucket(e.major)]]+=a;});
   let stockQty=0,stockValue=0;const restock=[];
-  Store.data.products.forEach(p=>{const c=calcCost(p);(p.variants||[]).forEach(v=>{const st=variantStock(v);if(st>0){stockQty+=st;stockValue+=st*c.twd;}const rs=variantRestock(v);if(rs>0)restock.push({code:v.code,name:p.name,color:v.color,size:v.size,qty:rs});});});
+  Store.data.products.forEach(p=>{const c=calcCost(p);const off=p.status==='已下架';(p.variants||[]).forEach(v=>{const st=variantStock(v);if(st>0){stockQty+=st;stockValue+=st*c.twd;}if(!off){const rs=variantRestock(v);if(rs>0)restock.push({code:v.code,name:p.name,color:v.color,size:v.size,qty:rs});}});});
   const agg={};
   Store.data.sales.forEach(s=>{const sc=saleCalc(s);if(!agg[s.code])agg[s.code]={code:s.code,name:sc.product?sc.product.name:'(查無)',qty:0,profit:0};agg[s.code].qty+=sc.qty;agg[s.code].profit+=sc.profit;});
   const top=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,5);
