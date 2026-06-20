@@ -127,6 +127,25 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
   display:flex;align-items:center;gap:6px;transition:transform .15s,box-shadow .2s;
 }
 .add-btn:hover{box-shadow:var(--shadow);} .add-btn:active{transform:scale(.95);}
+.phead-act{display:flex;align-items:center;gap:8px;}
+.batch-btn{background:var(--card);color:var(--main);border:1px solid var(--line);border-radius:14px;padding:9px 14px;font-weight:700;font-size:14px;box-shadow:var(--shadow-soft);transition:transform .15s;}
+.batch-btn.on{background:var(--main);color:#fff;border-color:var(--main);}
+.batch-btn:active{transform:scale(.95);}
+.batch-hint{font-size:13px;color:var(--ink-soft);margin:0 2px 14px;}
+.item.batch{cursor:pointer;}
+.item.batch.sel{border:2px solid var(--main);padding:13px;background:rgba(163,146,121,.08);}
+.bchk{width:26px;height:26px;border-radius:9px;border:2px solid var(--line);flex-shrink:0;display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;}
+.item.batch.sel .bchk{background:var(--main);border-color:var(--main);}
+.batch-bar{position:sticky;bottom:14px;margin-top:16px;display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px 14px;box-shadow:var(--shadow);}
+.batch-bar .bcount{font-size:13px;color:var(--ink-soft);flex:1;}
+.bset{border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;color:#fff;transition:transform .15s;}
+.bset:active{transform:scale(.95);}
+.bset.off{background:var(--clay);} .bset.on{background:var(--sage);}
+.vs-input{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;transition:border-color .2s;}
+.vs-input:focus{border-color:var(--main-soft);}
+.vs-row{display:flex;gap:10px;margin-top:10px;}
+.vs-sel{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;}
+.vs-sel:focus{border-color:var(--main-soft);}
 
 .searchbar{position:relative;margin-bottom:16px;}
 .searchbar input{
@@ -568,12 +587,6 @@ function findVariant(code){
       if(v.code===code)return {product:p,variant:v};
   return null;
 }
-function allCodes(){
-  const out=[];
-  Store.data.products.forEach(p=>(p.variants||[]).forEach(v=>out.push({code:v.code,name:p.name,product:p})));
-  return out;
-}
-
 /* ---------- 月結計算（現金流：營收 − 全部支出 = 淨利） ---------- */
 /* 共用計算：售出單筆營收/成本/毛利、採購單筆台幣成本、費用分桶。改公式只要改這裡。 */
 function saleCalc(s){
@@ -654,9 +667,11 @@ const icoDown=`<svg viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-4-4m4
    ========================================================= */
 let route='home';
 let productSearch='';
+let batchMode=false;
+let batchSel=new Set();
 let reportMonth=currentMonth();
 
-function go(r){route=r;render();window.scrollTo(0,0);}
+function go(r){route=r;batchMode=false;batchSel=new Set();render();window.scrollTo(0,0);}
 
 function render(){
   const app=$('app');
@@ -831,14 +846,18 @@ function renderProducts(){
   }else{
     body=list.map(p=>{
       const c=calcCost(p);const cover=productCover(p);
-      return `<div class="item">
-        <div class="thumb">${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover;cursor:pointer" onclick="viewImg(this.src)">`:ILL.product}</div>
-        <div class="body">
+      const thumb=`<div class="thumb">${cover?`<img src="${cover}" style="width:100%;height:100%;object-fit:cover${batchMode?'':';cursor:pointer'}" ${batchMode?'':'onclick="viewImg(this.src)"'}>`:ILL.product}</div>`;
+      const info=`<div class="body">
           <div class="code">${esc(p.baseCode)} · ${esc(catName(p.category))}</div>
           <div class="name">${esc(p.name||'未命名商品')}</div>
           <div class="meta">${esc(p.vendor||'—')} · 現貨 ${productStock(p)}${productRestock(p)>0?` · <span class="restock">需補貨 ${productRestock(p)}</span>`:''}</div>
           <span class="pill ${statusPill[p.status]||'on'}">${esc(p.status||'上架中')}</span>
-        </div>
+        </div>`;
+      if(batchMode){
+        return `<div class="item batch ${batchSel.has(p.id)?'sel':''}" onclick="toggleBatchPick('${p.id}')">
+          <div class="bchk">${batchSel.has(p.id)?'✓':''}</div>${thumb}${info}</div>`;
+      }
+      return `<div class="item">${thumb}${info}
         <div class="right">
           <div class="price num">${nt(c.price)}</div>
           <div class="sub2">成本 ${nt(c.twd)}</div>
@@ -846,18 +865,30 @@ function renderProducts(){
             <button onclick="openProductForm('${p.id}')">編輯</button>
             <button class="del" onclick="removeProduct('${p.id}')">刪除</button>
           </div>
-        </div>
-      </div>`;
+        </div>`;
     }).join('');
   }
   return `<div class="page">
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>商品庫</h2>
-      <button class="add-btn" onclick="openProductForm()">＋ 新增</button></div>
-    <div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>
-    ${exportRow('products')}
+      <div class="phead-act">
+        <button class="batch-btn ${batchMode?'on':''}" onclick="toggleBatch()">${batchMode?'完成':'批次'}</button>
+        ${batchMode?'':`<button class="add-btn" onclick="openProductForm()">＋ 新增</button>`}
+      </div></div>
+    ${batchMode?'':`<div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>`}
+    ${batchMode?'<p class="batch-hint">勾選要調整的商品，於下方選擇上架／下架</p>':exportRow('products')}
     <div id="listBody">${body}</div>
+    ${batchMode?`<div class="batch-bar"><span class="bcount">已選 ${batchSel.size}</span><button class="bset off" onclick="batchSetStatus('已下架')">下架所選</button><button class="bset on" onclick="batchSetStatus('上架中')">上架所選</button></div>`:''}
   </div>`;
+}
+function toggleBatch(){batchMode=!batchMode;batchSel=new Set();render();}
+function toggleBatchPick(id){if(batchSel.has(id))batchSel.delete(id);else batchSel.add(id);render();}
+function batchSetStatus(status){
+  if(!batchSel.size){toast('請先勾選商品');return;}
+  let n=0;
+  Store.data.products.forEach(p=>{if(batchSel.has(p.id)){p.status=status;DB.set('products',{...p});n++;}});
+  batchMode=false;batchSel=new Set();render();
+  toast((status==='已下架'?'已下架 ':'已上架 ')+n+' 件商品');
 }
 function rerenderList(){
   // 即時搜尋：只重畫清單，避免輸入框失焦
@@ -1218,26 +1249,64 @@ function removeProduct(id){
   });
 }
 
-/* ----- 共用：商品編號選擇器 + 自動帶入 ----- */
-function codeOptions(selected){
-  const codes=allCodes();
-  if(!codes.length)return '<option value="">（請先到商品庫建立商品）</option>';
-  return '<option value="">請選擇商品編號</option>'+codes.map(c=>`<option value="${c.code}" ${c.code===selected?'selected':''}>${c.code} · ${esc(c.name)}</option>`).join('');
+/* ----- 共用：商品→尺碼→顏色 三段式可搜尋選擇器（銷售／採購共用；排除已下架） ----- */
+function activeProducts(){return Store.data.products.filter(p=>p.status!=='已下架');}
+function curForm(kind){return kind==='sale'?sf:qf;}
+function initSelFields(f){
+  f.pid=null;f.size='';f.color='';
+  if(f.code){const h=findVariant(f.code);if(h){f.pid=h.product.id;f.size=h.variant.size||'';f.color=h.variant.color||'';}}
 }
+function resolveVariantCode(f){
+  const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
+  if(!prod)return '';
+  const needSize=(prod.sizes||[]).length>0,needColor=(prod.colors||[]).length>0;
+  if(needSize&&!f.size)return '';
+  if(needColor&&!f.color)return '';
+  const v=(prod.variants||[]).find(v=>(!needColor||v.color===f.color)&&(!needSize||v.size===f.size));
+  return v?v.code:'';
+}
+function variantSelectorHTML(kind){
+  const f=curForm(kind);
+  const prods=activeProducts();
+  const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
+  if(!prods.length&&!prod)return `<div class="lookup-miss">請先到商品庫建立商品（或商品都已下架）。</div>`;
+  const listId=kind+'ProdList';
+  const dl=`<datalist id="${listId}">${prods.map(p=>`<option value="${esc(p.baseCode)}">${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('')}</datalist>`;
+  let html=`${dl}<input class="vs-input" list="${listId}" placeholder="輸入或選擇商品編號" value="${prod?esc(prod.baseCode):''}" onchange="selProduct('${kind}',this.value)">`;
+  if(prod){
+    const sizes=prod.sizes||[],colors=prod.colors||[];
+    const row=[];
+    if(sizes.length)row.push(`<select class="vs-sel" onchange="selSize('${kind}',this.value)"><option value="">選擇尺碼</option>${sizes.map(s=>`<option ${s===f.size?'selected':''}>${esc(s)}</option>`).join('')}</select>`);
+    if(colors.length)row.push(`<select class="vs-sel" onchange="selColor('${kind}',this.value)"><option value="">選擇顏色</option>${colors.map(c=>`<option ${c===f.color?'selected':''}>${esc(c)}</option>`).join('')}</select>`);
+    if(row.length)html+=`<div class="vs-row">${row.join('')}</div>`;
+  }
+  return html;
+}
+function refreshSel(kind){const el=$(kind+'Sel');if(el)el.innerHTML=variantSelectorHTML(kind);(kind==='sale'?saleLookup:purLookup)();}
+function selProduct(kind,baseCode){
+  const f=curForm(kind);
+  const prod=activeProducts().find(p=>p.baseCode===baseCode)||Store.data.products.find(p=>p.baseCode===baseCode);
+  f.pid=prod?prod.id:null;f.size='';f.color='';
+  if(prod){if((prod.sizes||[]).length===1)f.size=prod.sizes[0];if((prod.colors||[]).length===1)f.color=prod.colors[0];}
+  f.code=resolveVariantCode(f);refreshSel(kind);
+}
+function selSize(kind,val){const f=curForm(kind);f.size=val;f.code=resolveVariantCode(f);refreshSel(kind);}
+function selColor(kind,val){const f=curForm(kind);f.color=val;f.code=resolveVariantCode(f);refreshSel(kind);}
 
 /* ----- 銷售表單 ----- */
 let sf=null;
 function openSaleForm(id){
   if(id)sf={...Store.data.sales.find(s=>s.id===id)};
   else sf={id:uid(),month:currentMonth(),code:'',qty:1};
+  initSelFields(sf);
   drawSaleForm();
 }
 function drawSaleForm(){
   openSheet(`
     <h3>${sf.code&&Store.data.sales.find(s=>s.id===sf.id)?'編輯銷售':'記一筆銷售'}</h3>
-    <p class="desc">選商品編號、填數量，營收毛利自動算</p>
+    <p class="desc">選商品、尺碼顏色，填數量，營收毛利自動算</p>
     <div class="field"><label>月份</label><input type="month" value="${toMonthInput(sf.month)}" onchange="sf.month=fromMonthInput(this.value)"></div>
-    <div class="field"><label>商品編號</label><select onchange="sf.code=this.value;saleLookup()">${codeOptions(sf.code)}</select></div>
+    <div class="field"><label>選擇商品</label><div id="saleSel">${variantSelectorHTML('sale')}</div></div>
     <div id="saleInfo">${saleLookupHTML()}</div>
     <div class="field"><label>數量</label><input type="number" min="1" value="${sf.qty}" oninput="sf.qty=+this.value||0;saleLookup()"></div>
     <div class="save-row"><button class="btn-ghost" onclick="closeSheet()">取消</button><button class="btn-primary" onclick="saveSale()">儲存</button></div>
@@ -1264,9 +1333,10 @@ function saleLookupHTML(){
 }
 function saleLookup(){const el=$('saleInfo');if(el)el.innerHTML=saleLookupHTML();}
 function saveSale(){
-  if(!sf.code){toast('請選擇商品編號');return;}
+  if(!sf.code){toast('請選好商品（含尺碼／顏色）');return;}
   if(!sf.qty||sf.qty<1){toast('數量至少 1');return;}
-  DB.set('sales',{...sf});closeSheet();toast('已記錄銷售');
+  const obj={...sf};delete obj.pid;delete obj.size;delete obj.color;
+  DB.set('sales',obj);closeSheet();toast('已記錄銷售');
 }
 
 /* ----- 採購表單 ----- */
@@ -1274,6 +1344,7 @@ let qf=null;
 function openPurchaseForm(id){
   if(id){qf={...Store.data.purchases.find(p=>p.id===id)};if(!qf.date)qf.date=qf.month?(qf.month.replace('/','-')+'-01'):todayStr();if(qf.rate===undefined)qf.rate='';}
   else qf={id:uid(),date:todayStr(),rate:'',code:'',qty:1};
+  initSelFields(qf);
   drawPurchaseForm();
 }
 function drawPurchaseForm(){
@@ -1281,7 +1352,7 @@ function drawPurchaseForm(){
     <h3>記一筆採購</h3>
     <p class="desc">記錄向韓國補了什麼、補多少</p>
     <div class="field"><label>採購日期</label><input type="date" value="${qf.date}" onchange="qf.date=this.value||'${todayStr()}'"></div>
-    <div class="field"><label>商品編號</label><select onchange="qf.code=this.value;purLookup()">${codeOptions(qf.code)}</select></div>
+    <div class="field"><label>選擇商品</label><div id="purSel">${variantSelectorHTML('pur')}</div></div>
     <div class="field"><label>採購當時匯率 <span class="opt">1台幣兌多少韓幣</span></label><input type="number" step="0.01" value="${qf.rate}" oninput="qf.rate=this.value;purLookup()" placeholder="例 41.5"></div>
     <div id="purInfo">${purLookupHTML()}</div>
     <div class="field"><label>數量</label><input type="number" min="1" value="${qf.qty}" oninput="qf.qty=+this.value||0;purLookup()"></div>
@@ -1308,10 +1379,10 @@ function purLookupHTML(){
 }
 function purLookup(){const el=$('purInfo');if(el)el.innerHTML=purLookupHTML();}
 function savePurchase(){
-  if(!qf.code){toast('請選擇商品編號');return;}
+  if(!qf.code){toast('請選好商品（含尺碼／顏色）');return;}
   if(!qf.rate||+qf.rate<=0){toast('請輸入採購當時匯率');return;}
   if(!qf.qty||qf.qty<1){toast('數量至少 1');return;}
-  const obj={...qf};delete obj.month;obj.rate=+qf.rate;
+  const obj={...qf};delete obj.month;delete obj.pid;delete obj.size;delete obj.color;obj.rate=+qf.rate;
   DB.set('purchases',obj);closeSheet();toast('已記錄採購');
 }
 
