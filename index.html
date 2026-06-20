@@ -1658,8 +1658,9 @@ function exportExpensePDF(){
 }
 /* ===== 商品庫：含圖片的 Excel / PDF ===== */
 function productCover(p){
+  if(p.images&&p.images[0])return p.images[0]; // 商品共用圖優先
   if(p.colors&&p.colors.length&&p.colorImages){for(const co of p.colors){if(p.colorImages[co])return p.colorImages[co];}}
-  return (p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;
+  return ((p.variants||[]).find(v=>v.image)||{}).image||null;
 }
 function colorImage(p,color){return (p.colorImages&&p.colorImages[color])||(p.images&&p.images[0])||((p.variants||[]).find(v=>v.image)||{}).image||null;}
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
