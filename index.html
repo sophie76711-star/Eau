@@ -143,6 +143,8 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .bset.off{background:var(--clay);} .bset.on{background:var(--sage);}
 .vs-input{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;transition:border-color .2s;}
 .vs-input:focus{border-color:var(--main-soft);}
+.vs-sel-full{width:100%;margin-top:10px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;transition:border-color .2s;}
+.vs-sel-full:focus{border-color:var(--main-soft);}
 .vs-row{display:flex;gap:10px;margin-top:10px;}
 .vs-sel{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;}
 .vs-sel:focus{border-color:var(--main-soft);}
@@ -1271,8 +1273,16 @@ function variantSelectorHTML(kind){
   const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
   if(!prods.length&&!prod)return `<div class="lookup-miss">請先到商品庫建立商品（或商品都已下架）。</div>`;
   const listId=kind+'ProdList';
+  // 下拉清單：上架商品 +（若正在編輯已下架商品）把該商品也列入，避免編輯時對不上
+  let selList=prods.slice();
+  if(prod&&!selList.some(p=>p.id===prod.id))selList=[prod,...selList];
+  // 1) 輸入式搜尋（打字找編號或名稱）
   const dl=`<datalist id="${listId}">${prods.map(p=>`<option value="${esc(p.baseCode)}">${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('')}</datalist>`;
-  let html=`${dl}<input class="vs-input" list="${listId}" placeholder="輸入或選擇商品編號" value="${prod?esc(prod.baseCode):''}" onchange="selProduct('${kind}',this.value)">`;
+  const search=`${dl}<input class="vs-input" list="${listId}" placeholder="輸入商品編號或名稱搜尋" value="${prod?esc(prod.baseCode):''}" onchange="selProduct('${kind}',this.value)">`;
+  // 2) 下拉式選單（顯示商品名稱）
+  const opts=`<option value="">或從清單選擇商品…</option>`+selList.map(p=>`<option value="${esc(p.baseCode)}" ${prod&&p.id===f.pid?'selected':''}>${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('');
+  const dropdown=`<select class="vs-sel-full" onchange="selProduct('${kind}',this.value)">${opts}</select>`;
+  let html=search+dropdown;
   if(prod){
     const sizes=prod.sizes||[],colors=prod.colors||[];
     const row=[];
