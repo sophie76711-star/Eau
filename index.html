@@ -145,6 +145,9 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .vs-input:focus{border-color:var(--main-soft);}
 .vs-sel-full{width:100%;margin-top:10px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;transition:border-color .2s;}
 .vs-sel-full:focus{border-color:var(--main-soft);}
+.mfilter{margin-bottom:14px;}
+.mfilter select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);outline:none;box-shadow:var(--shadow-soft);}
+.mfilter select:focus{border-color:var(--main-soft);}
 .vs-row{display:flex;gap:10px;margin-top:10px;}
 .vs-sel{flex:1;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:13px 14px;font-size:15px;outline:none;}
 .vs-sel:focus{border-color:var(--main-soft);}
@@ -499,6 +502,7 @@ let sheetOpen=false;
 
 /* ---------- 小工具 ---------- */
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function idMonth(id){const ms=parseInt(String(id||'').slice(0,-5),36);if(!ms||isNaN(ms))return '';const d=new Date(ms);return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0');}
 const $=id=>document.getElementById(id);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function nt(n){return 'NT$'+Math.round(n||0).toLocaleString('en-US');}
@@ -674,9 +678,10 @@ let route='home';
 let productSearch='';
 let batchMode=false;
 let batchSel=new Set();
+let listMonth='';
 let reportMonth=currentMonth();
 
-function go(r){route=r;batchMode=false;batchSel=new Set();render();window.scrollTo(0,0);}
+function go(r){route=r;batchMode=false;batchSel=new Set();listMonth='';render();window.scrollTo(0,0);}
 
 function render(){
   const app=$('app');
@@ -842,10 +847,20 @@ function renderHome(){
 }
 
 /* ---------- 商品庫 ---------- */
+function monthFilterBar(months){
+  const uniq=[...new Set((months||[]).filter(Boolean))].sort().reverse(); // 新→舊
+  if(!uniq.length)return '';
+  return `<div class="mfilter"><select onchange="listMonth=this.value;render()">
+    <option value="">全部月份</option>
+    ${uniq.map(m=>`<option value="${esc(m)}" ${m===listMonth?'selected':''}>${esc(m)}</option>`).join('')}
+  </select></div>`;
+}
 function renderProducts(){
   const q=productSearch.trim().toLowerCase();
   let list=Store.data.products.slice().reverse();
+  if(listMonth)list=list.filter(p=>idMonth(p.id)===listMonth);
   if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||p.baseCode.toLowerCase().includes(q)||(p.variants||[]).some(v=>v.code.toLowerCase().includes(q)));
+  list.sort((a,b)=>(a.status==='已下架'?1:0)-(b.status==='已下架'?1:0)); // 上架在上、已下架沉底（穩定排序保留新→舊）
   const statusPill={'上架中':'on','預購中':'pre','已下架':'off','已售完':'sold'};
   let body;
   if(!Store.data.products.length){
@@ -886,6 +901,7 @@ function renderProducts(){
         ${batchMode?'':`<button class="add-btn" onclick="openProductForm()">＋ 新增</button>`}
       </div></div>
     ${batchMode?'':`<div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>`}
+    ${batchMode?'':monthFilterBar(Store.data.products.map(p=>idMonth(p.id)))}
     ${batchMode?'<p class="batch-hint">勾選要調整的商品，於下方選擇上架／下架</p>':exportRow('products')}
     <div id="listBody">${body}</div>
     ${batchMode?`<div class="batch-bar"><span class="bcount">已選 ${batchSel.size}</span><button class="bset off" onclick="batchSetStatus('已下架')">下架所選</button><button class="bset on" onclick="batchSetStatus('上架中')">上架所選</button></div>`:''}
@@ -911,6 +927,7 @@ function rerenderList(){
 /* ---------- 銷售紀錄 ---------- */
 function renderSales(){
   let list=Store.data.sales.slice().reverse();
+  if(listMonth)list=list.filter(s=>s.month===listMonth);
   let body;
   if(!list.length){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>還沒有銷售紀錄</p><div class="hint">記錄本月賣出的商品編號與數量就好</div></div>`;
@@ -934,6 +951,7 @@ function renderSales(){
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>銷售紀錄</h2>
       <button class="add-btn" onclick="openSaleForm()">＋ 新增</button></div>
+    ${monthFilterBar(Store.data.sales.map(s=>s.month))}
     ${exportRow('sales')}
     ${body}
   </div>`;
@@ -942,6 +960,7 @@ function renderSales(){
 /* ---------- 費用紀錄（日記卡片） ---------- */
 function renderExpenses(){
   let list=Store.data.expenses.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  if(listMonth)list=list.filter(e=>monthOf(e.date)===listMonth);
   let body;
   if(!list.length){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>還沒有費用紀錄</p><div class="hint">隨手記一筆，金額最重要，其他都可省略</div></div>`;
@@ -959,6 +978,7 @@ function renderExpenses(){
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>費用紀錄</h2>
       <button class="add-btn" onclick="openExpenseForm()">＋ 新增</button></div>
+    ${monthFilterBar(Store.data.expenses.map(e=>monthOf(e.date)))}
     ${exportRow('expenses')}
     ${body}
   </div>`;
@@ -968,6 +988,7 @@ function renderExpenses(){
 function viewImg(src){const ov=document.createElement('div');ov.className='imgview';const im=document.createElement('img');im.src=src;ov.appendChild(im);ov.onclick=()=>ov.remove();document.body.appendChild(ov);}
 function renderPurchases(){
   let list=Store.data.purchases.slice().reverse();
+  if(listMonth)list=list.filter(q=>(q.date?monthOf(q.date):q.month)===listMonth);
   let body;
   if(!list.length){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>還沒有採購紀錄</p><div class="hint">記錄這個月向韓國補了什麼、補多少</div></div>`;
@@ -991,6 +1012,7 @@ function renderPurchases(){
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>採購紀錄</h2>
       <button class="add-btn" onclick="openPurchaseForm()">＋ 新增</button></div>
+    ${monthFilterBar(Store.data.purchases.map(q=>q.date?monthOf(q.date):q.month))}
     ${exportRow('purchases')}
     ${body}
   </div>`;
@@ -1492,10 +1514,10 @@ function buildSheets(month){
   // 指定月份：只給該月四張表
   if(month)return [['月結',mr],['銷售',sales],['費用',exp],['採購',pur]];
   // 全部：再附上商品主檔與規格庫存，作為完整備份
-  const prod=[['商品編號','分類','商品名稱','韓國廠商','狀態','韓幣成本','匯率','台幣成本','定價倍率','額外加價','售價','總庫存','備註']];
-  P.forEach(p=>{const c=calcCost(p);prod.push([p.baseCode,catName(p.category),p.name,p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,+p.multiplier||1.5,+p.extra||0,c.price,productQty(p),p.note||'']);});
+  const prod=[['商品編號','分類','商品名稱','韓國廠商','韓幣成本','匯率','台幣成本','定價倍率','額外加價','售價','總庫存','備註']];
+  P.forEach(p=>{if(p.status==='已下架')return;const c=calcCost(p);prod.push([p.baseCode,catName(p.category),p.name,p.vendor||'',+p.krwCost||0,+p.rate||0,c.twd,+p.multiplier||1.5,+p.extra||0,c.price,productQty(p),p.note||'']);});
   const vars=[['商品編號','商品名稱','顏色','尺寸','數量']];
-  P.forEach(p=>(p.variants||[]).forEach(v=>vars.push([v.code,p.name,v.color||'',v.size||'',+v.qty||0])));
+  P.forEach(p=>{if(p.status==='已下架')return;(p.variants||[]).forEach(v=>vars.push([v.code,p.name,v.color||'',v.size||'',+v.qty||0]));});
   return [['商品',prod],['規格庫存',vars],['銷售',sales],['費用',exp],['採購',pur],['月結',mr]];
 }
 function downloadBlob(blob,fn){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
@@ -1675,14 +1697,15 @@ function colorImage(p,color){return (p.colorImages&&p.colorImages[color])||(p.im
 function imgDims(dataUrl){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res({w:im.naturalWidth||1,h:im.naturalHeight||1});im.onerror=rej;im.src=dataUrl;});}
 function dataUrlParts(d){const m=/^data:image\/(\w+);base64,(.*)$/.exec(d||'');if(m)return{ext:(m[1]==='jpg'?'jpeg':m[1]),b64:m[2]};return{ext:'jpeg',b64:(d||'').split(',').pop()};}
 function exportProductsExcelText(){
-  const head=['商品編號','分類','商品名稱','顏色','尺寸','韓國廠商','狀態','韓幣成本','匯率','台幣成本','售價','現貨','需補貨','備註'];
+  const head=['商品編號','分類','商品名稱','顏色','尺寸','韓國廠商','韓幣成本','匯率','台幣成本','售價','現貨','需補貨','備註'];
   const rows=[head];
-  productVariantRows().forEach(({p,v})=>{const c=calcCost(p);rows.push([v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']);});
+  productVariantRows().forEach(({p,v})=>{const c=calcCost(p);rows.push([v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']);});
   writeExcel([['商品',rows]],'Eau-Atelier-商品-'+todayStr().replace(/-/g,''));
 }
 function productVariantRows(){
   const out=[];
   Store.data.products.forEach(p=>{
+    if(p.status==='已下架')return; // 匯出只含上架商品
     const vs=(p.variants&&p.variants.length)?p.variants:[{code:p.baseCode,color:'',size:'',qty:0}];
     vs.forEach(v=>out.push({p,v}));
   });
@@ -1698,7 +1721,7 @@ async function exportProductsExcel(){
     ws.columns=[
       {header:'圖片',width:18},{header:'商品編號',width:14},{header:'分類',width:12},
       {header:'商品名稱',width:22},{header:'顏色',width:10},{header:'尺寸',width:9},
-      {header:'韓國廠商',width:14},{header:'狀態',width:10},{header:'韓幣成本',width:11},
+      {header:'韓國廠商',width:14},{header:'韓幣成本',width:11},
       {header:'匯率',width:8},{header:'台幣成本',width:11},{header:'售價',width:11},
       {header:'現貨',width:8},{header:'需補貨',width:8},{header:'備註',width:22}
     ];
@@ -1709,7 +1732,7 @@ async function exportProductsExcel(){
     let r=2;
     for(const {p,v} of productVariantRows()){
       const c=calcCost(p);const row=ws.getRow(r);
-      [,v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',p.status||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']
+      [,v.code,catName(p.category),p.name||'',v.color||'',v.size||'',p.vendor||'',+p.krwCost||0,+p.rate||0,c.twd,c.price,Math.max(0,variantStock(v)),variantRestock(v),p.note||'']
         .forEach((val,i)=>{if(i>0)row.getCell(i+1).value=val;});
       row.height=ROWPX*0.75;row.alignment={vertical:'middle'};
       const cover=colorImage(p,v.color);
@@ -1719,9 +1742,9 @@ async function exportProductsExcel(){
           const dim=dimCache[cover];
           const scale=Math.min(FITW/dim.w,FITH/dim.h);
           const w=Math.max(1,Math.round(dim.w*scale)),h=Math.max(1,Math.round(dim.h*scale));
-          const offX=(COLPX-w)/2,offY=(ROWPX-h)/2;
+          const offX=Math.max(0,(COLPX-w)/2),offY=Math.max(0,(ROWPX-h)/2);
           if(idCache[cover]===undefined){const {ext,b64}=dataUrlParts(cover);idCache[cover]=wb.addImage({base64:b64,extension:ext});}
-          ws.addImage(idCache[cover],{tl:{col:offX/COLPX,row:(r-1)+offY/ROWPX},br:{col:(offX+w)/COLPX,row:(r-1)+(offY+h)/ROWPX}});
+          ws.addImage(idCache[cover],{tl:{col:offX/COLPX,row:(r-1)+offY/ROWPX},ext:{width:w,height:h},editAs:'oneCell'});
         }catch(e){console.error('img',e);}
       }
       r++;
