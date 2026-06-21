@@ -328,8 +328,6 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .variant-tbl .vr:last-child{border-bottom:none;}
 .variant-tbl .vc{font-family:Nunito;font-weight:800;font-size:13px;color:var(--main);min-width:78px;}
 .variant-tbl .vd{flex:1;font-size:13px;color:var(--ink-soft);}
-.variant-tbl .vq{width:74px;}
-.variant-tbl .vq input{width:100%;text-align:center;padding:8px;border-radius:10px;border:1px solid var(--line);}
 
 .imgrow{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px;}
 .imgrow .ph{width:64px;height:64px;border-radius:13px;object-fit:cover;border:1px solid var(--line);position:relative;}
@@ -578,10 +576,10 @@ function calcCost(p){
   const price=p.priceManual?(+p.price||0):suggest;
   return {twd,suggest,price};
 }
-/* ===== 庫存自動計算：現貨 = 期初 + 進貨 − 銷售；不足為需補貨 ===== */
+/* ===== 庫存自動計算：現貨 = 進貨 − 銷售；不足為需補貨 ===== */
 function variantPurchased(code){return Store.data.purchases.reduce((s,p)=>s+(p.code===code?(+p.qty||0):0),0);}
 function variantSold(code){return Store.data.sales.reduce((s,x)=>s+(x.code===code?(+x.qty||0):0),0);}
-function variantStock(v){return (+v.qty||0)+variantPurchased(v.code)-variantSold(v.code);}
+function variantStock(v){return variantPurchased(v.code)-variantSold(v.code);}
 function variantRestock(v){const st=variantStock(v);return st<0?-st:0;}
 function codeStock(code){const h=findVariant(code);return h?variantStock(h.variant):0;}
 function productStock(p){return (p.variants||[]).reduce((s,v)=>s+Math.max(0,variantStock(v)),0);}
@@ -1218,12 +1216,11 @@ function drawProductForm(){
       <div class="addinline"><input id="sizeIn" placeholder="例：S 或 37" onkeydown="if(event.key==='Enter'){event.preventDefault();pfAddSize()}"><button onclick="pfAddSize()">加入</button></div>
     </div>
 
-    <div class="field"><label>規格與期初庫存 <span class="opt">數量＝期初庫存，可留 0；現貨會由「期初＋採購−銷售」自動計算</span></label>
+    <div class="field"><label>規格一覽 <span class="opt">現貨由「採購 − 銷售」自動計算，不需在此填數量</span></label>
       <div class="variant-tbl" id="vTbl">
-        ${pf.variants.map((v,i)=>`<div class="vr">
+        ${pf.variants.map(v=>`<div class="vr">
           <span class="vc">${esc(v.code)}</span>
           <span class="vd">${[v.color,v.size].filter(Boolean).join(' · ')||'單一規格'}</span>
-          <span class="vq"><input type="number" min="0" value="${v.qty||0}" oninput="pf.variants[${i}].qty=+this.value||0"></span>
         </div>`).join('')}
       </div>
     </div>
@@ -1516,8 +1513,8 @@ function buildSheets(month){
   // 全部：再附上商品主檔與規格庫存，作為完整備份
   const prod=[['商品編號','分類','商品名稱','韓國廠商','韓幣成本','匯率','台幣成本','定價倍率','額外加價','售價','總庫存','備註']];
   P.forEach(p=>{if(p.status==='已下架')return;const c=calcCost(p);prod.push([p.baseCode,catName(p.category),p.name,p.vendor||'',+p.krwCost||0,+p.rate||0,c.twd,+p.multiplier||1.5,+p.extra||0,c.price,productQty(p),p.note||'']);});
-  const vars=[['商品編號','商品名稱','顏色','尺寸','數量']];
-  P.forEach(p=>{if(p.status==='已下架')return;(p.variants||[]).forEach(v=>vars.push([v.code,p.name,v.color||'',v.size||'',+v.qty||0]));});
+  const vars=[['商品編號','商品名稱','顏色','尺寸','現貨']];
+  P.forEach(p=>{if(p.status==='已下架')return;(p.variants||[]).forEach(v=>vars.push([v.code,p.name,v.color||'',v.size||'',Math.max(0,variantStock(v))]));});
   return [['商品',prod],['規格庫存',vars],['銷售',sales],['費用',exp],['採購',pur],['月結',mr]];
 }
 function downloadBlob(blob,fn){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
