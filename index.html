@@ -744,9 +744,13 @@ function googleLogin(){
   if(!DB.cloud)return;
   const p=new firebase.auth.GoogleAuthProvider();
   firebase.auth().signInWithPopup(p).catch(e=>{
-    if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/cancelled-popup-request'||e.code==='auth/operation-not-supported-in-this-environment')){
-      firebase.auth().signInWithRedirect(p);
-    }else{toast('登入失敗:'+(e.code||e.message||''));}
+    const code=(e&&(e.code||e.message))||'';
+    if(/popup-closed-by-user|cancelled-popup-request/.test(code))return; // 使用者自己關閉，不提示
+    if(/popup-blocked|operation-not-supported/.test(code)){
+      toast('請改用 Safari 或 Chrome 直接開啟網址登入，勿用其他 App 內建的瀏覽器');
+    }else{
+      toast('登入失敗：'+code);
+    }
   });
 }
 function localEnter(){
@@ -1555,7 +1559,7 @@ function makePdf(html,filename,landscape){
   const el=root.querySelector('#pdfPage');
   if(window.html2pdf){
     toast('正在產生 PDF…');
-    html2pdf().set({margin:[24,24,24,24],filename:filename,image:{type:'jpeg',quality:0.96},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'pt',format:'a4',orientation:landscape?'landscape':'portrait'}})
+    html2pdf().set({margin:[24,24,24,24],filename:filename,image:{type:'jpeg',quality:0.96},html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},jsPDF:{unit:'pt',format:'a4',orientation:landscape?'landscape':'portrait'},pagebreak:{mode:['css','legacy'],avoid:'tr'}})
       .from(el).outputPdf('blob').then(blob=>{root.style.cssText='';root.innerHTML='';deliverFile(blob,filename,'application/pdf');})
       .catch(e=>{console.error(e);root.style.cssText='';setTimeout(()=>window.print(),60);});
   }else{
@@ -1594,12 +1598,17 @@ const PDF_TH='text-align:left;padding:7px 8px;border-bottom:2px solid #A39279;co
 const PDF_TD='padding:6px 8px;border-bottom:1px solid #E8E1D8;font-size:11px;vertical-align:middle';
 function pdfHeader(t){return `<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:10px;margin-bottom:14px"><div style="font-family:Poppins,sans-serif;font-size:22px;color:#A39279;font-weight:600">Eau Atelier</div><div style="font-weight:700;font-size:15px">${esc(t)} · ${esc(todayStr())}</div></div>`;}
 function pdfFooter(){return `<div style="margin-top:18px;font-size:11px;color:#7A7167;text-align:center">由 Eau Atelier 產生</div>`;}
-function pdfImgBox(cover,w,h){return cover?`<img src="${cover}" style="width:${w}px;height:${h}px;object-fit:contain;display:block;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px">`:`<div style="width:${w}px;height:${h}px;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px"></div>`;}
+function pdfImgBox(cover,w,h){
+  const box=`width:${w}px;height:${h}px;background:#F8F6F2;border:1px solid #E8E1D8;border-radius:6px;text-align:center;line-height:${h}px;overflow:hidden`;
+  return cover
+    ?`<div style="${box}"><img src="${cover}" style="max-width:${w}px;max-height:${h}px;vertical-align:middle;display:inline-block">`+`</div>`
+    :`<div style="${box}"></div>`;
+}
 function exportSalesPDF(){
   if(!Store.data.sales.length){toast('銷售紀錄目前沒有資料');return;}
   const rows=Store.data.sales.slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).map(s=>{
     const sc=saleCalc(s);const h=sc.h;const cover=h?colorImage(h.product,h.variant.color):null;
-    return `<tr>
+    return `<tr style="page-break-inside:avoid;break-inside:avoid">
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(s.month)}</td>
       <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(s.code)}</td>
@@ -1619,7 +1628,7 @@ function exportPurchasePDF(){
   if(!Store.data.purchases.length){toast('採購紀錄目前沒有資料');return;}
   const rows=Store.data.purchases.slice().sort((a,b)=>((a.date||a.month||'')).localeCompare(b.date||b.month||'')).map(q=>{
     const h=findVariant(q.code);const twd=purchaseTwd(q);const cover=h?colorImage(h.product,h.variant.color):null;
-    return `<tr>
+    return `<tr style="page-break-inside:avoid;break-inside:avoid">
       <td style="${PDF_TD}">${pdfImgBox(cover,84,64)}</td>
       <td style="${PDF_TD}">${esc(q.date||q.month||'')}</td>
       <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(q.code)}</td>
@@ -1641,7 +1650,7 @@ function exportExpensePDF(){
   if(!Store.data.expenses.length){toast('費用紀錄目前沒有資料');return;}
   const rows=Store.data.expenses.slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e=>{
     const amt=e.currency==='KRW'?`${nt(e.amount)}<div style="font-size:10px;color:#7A7167">原始 ${krwfmt(e.inputAmount)} · 匯率 ${esc(e.rate)}</div>`:nt(e.amount);
-    return `<tr>
+    return `<tr style="page-break-inside:avoid;break-inside:avoid">
       <td style="${PDF_TD}">${esc(e.date)}</td>
       <td style="${PDF_TD}">${esc(e.major)}</td>
       <td style="${PDF_TD}">${esc(e.minor||'')}</td>
@@ -1725,7 +1734,7 @@ function exportProductsPDF(){
   if(!Store.data.products.length){toast('商品庫目前沒有商品');return;}
   const rows=productVariantRows().map(({p,v})=>{
     const c=calcCost(p);const cover=colorImage(p,v.color);
-    return `<tr>
+    return `<tr style="page-break-inside:avoid;break-inside:avoid">
       <td style="${PDF_TD}">${pdfImgBox(cover,96,78)}</td>
       <td style="${PDF_TD};font-family:Nunito,sans-serif;color:#A39279;font-weight:700">${esc(v.code)}</td>
       <td style="${PDF_TD}">${esc(p.name||'')}</td>
@@ -1751,7 +1760,7 @@ function exportPDF(){
   const td='padding:7px 9px;border-bottom:1px solid #E8E1D8;font-size:12px';
   const tdn=td+';text-align:right;font-family:Nunito,sans-serif';
   const th='text-align:left;padding:7px 9px;border-bottom:2px solid #A39279;color:#7A7167;font-size:12px';
-  const salesRows=sales.length?sales.map(s=>{const sc=saleCalc(s);return `<tr><td style="${td}">${esc(s.code)}</td><td style="${td}">${esc(sc.product?sc.product.name:'(查無)')}</td><td style="${tdn}">${sc.qty}</td><td style="${tdn}">${nt(sc.rev)}</td><td style="${tdn}">${nt(sc.profit)}</td></tr>`;}).join(''):`<tr><td colspan="5" style="${td};color:#7A7167">本月沒有銷售紀錄</td></tr>`;
+  const salesRows=sales.length?sales.map(s=>{const sc=saleCalc(s);return `<tr style="page-break-inside:avoid;break-inside:avoid"><td style="${td}">${esc(s.code)}</td><td style="${td}">${esc(sc.product?sc.product.name:'(查無)')}</td><td style="${tdn}">${sc.qty}</td><td style="${tdn}">${nt(sc.rev)}</td><td style="${tdn}">${nt(sc.profit)}</td></tr>`;}).join(''):`<tr><td colspan="5" style="${td};color:#7A7167">本月沒有銷售紀錄</td></tr>`;
   const expRows=exps.length?exps.map(e=>`<tr><td style="${td}">${esc(e.date)}</td><td style="${td}">${esc(e.major)}</td><td style="${td}">${esc(e.minor||'')}</td><td style="${tdn}">${nt(e.amount)}</td></tr>`).join(''):`<tr><td colspan="4" style="${td};color:#7A7167">本月沒有費用紀錄</td></tr>`;
   const html=`<div style="font-family:'Noto Sans TC',sans-serif;color:#1F1F1F">
     <div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A39279;padding-bottom:10px;margin-bottom:14px">
