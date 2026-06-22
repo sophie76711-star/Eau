@@ -207,7 +207,16 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .rowitem .l1 .code{font-family:Nunito;font-weight:800;font-size:12px;color:var(--main);}
 .rowitem .l2{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--ink-soft);}
 .rowitem .l2 b{color:var(--ink);font-family:Nunito;}
-.tagm{font-family:Nunito;font-weight:700;font-size:12px;background:var(--bg);color:var(--ink-soft);padding:3px 9px;border-radius:999px;}
+.rowitem .bsub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.batches{margin-top:8px;border-top:1px dashed var(--line);}
+.batch-line{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+.batch-line:last-child{border-bottom:none;}
+.batch-line .bwhen{font-family:Nunito;color:var(--ink-soft);min-width:88px;}
+.batch-line .bvar{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--main);font-weight:700;}
+.batch-line .bqty{font-family:Nunito;font-weight:800;white-space:nowrap;}
+.batch-line .bact{display:flex;gap:6px;flex-shrink:0;}
+.batch-line .bact button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:5px 10px;font-size:12px;color:var(--ink-soft);}
+.batch-line .bact button.del{color:var(--clay);}
 
 /* expense diary card */
 .diary{background:var(--card);border-radius:20px;padding:15px 16px;margin-bottom:12px;box-shadow:var(--shadow-soft);border-left:5px solid var(--main-soft);}
@@ -945,6 +954,24 @@ function rerenderList(){
 }
 
 /* ---------- 銷售紀錄 ---------- */
+/* 把同一商品的多筆批次收進同一張卡（底層仍是各自獨立的紀錄，不影響計算與匯出） */
+function groupByProduct(records,whenOf){
+  const map=new Map();
+  records.forEach(r=>{
+    const hit=findVariant(r.code);
+    const key=hit?('p'+hit.product.id):('c'+r.code);
+    if(!map.has(key))map.set(key,{product:hit?hit.product:null,code:r.code,batches:[]});
+    map.get(key).batches.push(r);
+  });
+  const groups=[...map.values()];
+  groups.forEach(g=>g.batches.sort((a,b)=>String(whenOf(a)).localeCompare(String(whenOf(b))))); // 批次：舊→新
+  groups.sort((a,b)=>{
+    const mx=g=>g.batches.reduce((m,x)=>{const w=String(whenOf(x));return w>m?w:m;},'');
+    return mx(b).localeCompare(mx(a)); // 最新批次的商品排前面
+  });
+  return groups;
+}
+function batchVarLabel(code){const h=findVariant(code);return h?[h.variant.color,h.variant.size].filter(Boolean).join('·'):'';}
 function renderSales(){
   let list=Store.data.sales.slice().reverse();
   if(listMonth)list=list.filter(s=>s.month===listMonth);
@@ -952,18 +979,26 @@ function renderSales(){
   if(!list.length){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>還沒有銷售紀錄</p><div class="hint">記錄本月賣出的商品編號與數量就好</div></div>`;
   }else{
-    body=list.map(s=>{
-      const hit=findVariant(s.code);
-      const name=hit?hit.product.name:'（查無此商品編號）';
-      let rev=0,prof=0;
-      if(hit){const c=calcCost(hit.product);rev=c.price*s.qty;prof=(c.price-c.twd)*s.qty;}
+    const groups=groupByProduct(list,s=>s.month);
+    body=groups.map(g=>{
+      const name=g.product?g.product.name:'（查無此商品編號）';
+      const headCode=g.product?g.product.baseCode:g.code;
+      const c=g.product?calcCost(g.product):null;
+      let totalQty=0,totalRev=0,totalProf=0;
+      const lines=g.batches.map(s=>{
+        const qty=+s.qty||0;totalQty+=qty;
+        if(c){totalRev+=c.price*qty;totalProf+=(c.price-c.twd)*qty;}
+        return `<div class="batch-line">
+          <span class="bwhen">${esc(s.month)}</span>
+          <span class="bvar">${esc(batchVarLabel(s.code))}</span>
+          <span class="bqty">${qty} 件</span>
+          <span class="bact"><button onclick="openSaleForm('${s.id}')">改</button><button class="del" onclick="removeRec('sales','${s.id}')">刪</button></span>
+        </div>`;
+      }).join('');
       return `<div class="rowitem">
-        <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(s.code)}</span></div>
-        <div class="l2">
-          <span>${esc(s.month)} · 數量 <b>${s.qty}</b></span>
-          <span>營收 <b>${nt(rev)}</b> · 毛利 <b class="${prof>=0?'pos':'neg'}">${nt(prof)}</b></span>
-        </div>
-        <div class="cardact"><button onclick="openSaleForm('${s.id}')">編輯</button><button class="del" onclick="removeRec('sales','${s.id}')">刪除</button></div>
+        <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div>
+        <div class="batches">${lines}</div>
+        <div class="l2"><span>共 <b>${totalQty}</b> 件</span><span>營收 <b>${nt(totalRev)}</b> · 毛利 <b class="${totalProf>=0?'pos':'neg'}">${nt(totalProf)}</b></span></div>
       </div>`;
     }).join('');
   }
@@ -1013,15 +1048,27 @@ function renderPurchases(){
   if(!list.length){
     body=`<div class="empty"><div class="ec">${emptyIll}</div><p>還沒有採購紀錄</p><div class="hint">記錄這個月向韓國補了什麼、補多少</div></div>`;
   }else{
-    body=list.map(p=>{
-      const hit=findVariant(p.code);
-      const name=hit?hit.product.name:'（查無此商品編號）';
-      const vendor=hit?(hit.product.vendor||'—'):'—';
-      const when=p.date||p.month||'';
+    const groups=groupByProduct(list,q=>q.date||q.month||'');
+    body=groups.map(g=>{
+      const name=g.product?g.product.name:'（查無此商品編號）';
+      const headCode=g.product?g.product.baseCode:g.code;
+      const vendor=g.product?(g.product.vendor||'—'):'—';
+      let totalQty=0;
+      const lines=g.batches.map(p=>{
+        const qty=+p.qty||0;totalQty+=qty;
+        const when=p.date||p.month||'';
+        return `<div class="batch-line">
+          <span class="bwhen">${esc(when)}</span>
+          <span class="bvar">${esc(batchVarLabel(p.code))}</span>
+          <span class="bqty">${qty} 件</span>
+          <span class="bact"><button onclick="openPurchaseForm('${p.id}')">改</button><button class="del" onclick="removeRec('purchases','${p.id}')">刪</button></span>
+        </div>`;
+      }).join('');
       return `<div class="rowitem">
-        <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(p.code)}</span></div>
-        <div class="l2"><span>${esc(when)} · ${esc(vendor)}</span><span class="tagm">補 ${p.qty} 件</span></div>
-        <div class="cardact"><button onclick="openPurchaseForm('${p.id}')">編輯</button><button class="del" onclick="removeRec('purchases','${p.id}')">刪除</button></div>
+        <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div>
+        <div class="bsub">${esc(vendor)}</div>
+        <div class="batches">${lines}</div>
+        <div class="l2"><span>共 <b>${totalQty}</b> 件</span></div>
       </div>`;
     }).join('');
   }
