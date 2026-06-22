@@ -1174,10 +1174,10 @@ function drawProductForm(){
     <p class="desc">填好分類與名稱即可，售價會自動算給你</p>
 
     <div class="field"><label>商品分類</label>
-      <select ${pf._editing?'disabled':''} onchange="pfCat(this.value)">
+      <select onchange="pfCat(this.value)">
         ${CATEGORIES.map(x=>`<option value="${x.code}" ${x.code===pf.category?'selected':''}>${x.code}｜${x.name}</option>`).join('')}
       </select>
-      ${pf._editing?'<div class="hint">建立後分類與編號固定，避免影響已記錄的銷售與採購</div>':''}
+      ${pf._editing?'<div class="hint">可更改分類；變更後編號會跟著更新，相關的銷售／採購紀錄會自動同步成新編號，不會對不上</div>':''}
     </div>
 
     <div class="field"><label>基礎商品編號</label>
@@ -1250,7 +1250,13 @@ function drawProductForm(){
     </div>`;
   openSheet(html);
 }
-function pfCat(v){pf.category=v;pf.baseCode=v+nextSerial(v);pf.variants=genVariants(pf);drawProductForm();}
+function pfCat(v){
+  pf.category=v;
+  const orig=pf._editing?Store.data.products.find(x=>x.id===pf.id):null;
+  pf.baseCode=(orig&&orig.category===v)?orig.baseCode:(v+nextSerial(v));
+  pf.variants=genVariants(pf);
+  drawProductForm();
+}
 function pfAddColor(){const el=$('colorIn');const v=el.value.trim();if(!v)return;pf.colors=pf.colors||[];pf.colors.push(v);pf.variants=genVariants(pf);drawProductForm();setTimeout(()=>{const n=$('colorIn');if(n)n.focus();},0);}
 function pfRmColor(i){const co=pf.colors[i];if(pf.colorImages)delete pf.colorImages[co];pf.colors.splice(i,1);pf.variants=genVariants(pf);drawProductForm();}
 function pfColorImg(i,f){if(!f)return;const co=pf.colors[i];fileToThumb(f,500,d=>{pf.colorImages=pf.colorImages||{};pf.colorImages[co]=d;drawProductForm();});}
@@ -1267,9 +1273,19 @@ function saveProduct(){
   pf.twdCost=c.twd;
   pf.price=pf.priceManual?(+pf.price||c.suggest):c.suggest;
   const wasEditing=pf._editing;
+  let remapped=0;
+  if(wasEditing){
+    const orig=Store.data.products.find(x=>x.id===pf.id);
+    if(orig&&orig.baseCode&&orig.baseCode!==pf.baseCode){
+      const ob=orig.baseCode,nb=pf.baseCode;
+      const fix=(arr,table)=>arr.forEach(rec=>{if(rec.code&&rec.code.indexOf(ob)===0){rec.code=nb+rec.code.slice(ob.length);DB.set(table,rec);remapped++;}});
+      fix(Store.data.sales,'sales');
+      fix(Store.data.purchases,'purchases');
+    }
+  }
   const clean={...pf};delete clean._editing;
   DB.set('products',clean);
-  closeSheet();toast(wasEditing?'已更新商品':'已新增商品');
+  closeSheet();toast((wasEditing?'已更新商品':'已新增商品')+(remapped?`，同步 ${remapped} 筆紀錄`:''));
 }
 function removeProduct(id){
   const p=Store.data.products.find(x=>x.id===id);
