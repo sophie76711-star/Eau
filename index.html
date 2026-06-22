@@ -154,8 +154,8 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .vqg-l{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .vqg-code{font-family:Nunito;font-weight:800;font-size:13px;color:var(--main);margin-right:8px;}
 .vqg-d{font-size:12px;color:var(--ink-soft);}
-.vqg-in{width:72px;text-align:center;padding:9px;border-radius:10px;border:1px solid var(--line);font-size:15px;flex-shrink:0;outline:none;}
-.vqg-in:focus{border-color:var(--main-soft);}
+.vqg .vqg-in{width:72px;text-align:center;padding:9px;border-radius:10px;border:1px solid var(--line);font-size:15px;flex-shrink:0;outline:none;}
+.vqg .vqg-in:focus{border-color:var(--main-soft);}
 
 .searchbar{position:relative;margin-bottom:16px;}
 .searchbar input{
@@ -1001,13 +1001,10 @@ function renderPurchases(){
       const hit=findVariant(p.code);
       const name=hit?hit.product.name:'（查無此商品編號）';
       const vendor=hit?(hit.product.vendor||'—'):'—';
-      const rate=+p.rate||0;
-      const twd=purchaseTwd(p);
       const when=p.date||p.month||'';
       return `<div class="rowitem">
         <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(p.code)}</span></div>
         <div class="l2"><span>${esc(when)} · ${esc(vendor)}</span><span class="tagm">補 ${p.qty} 件</span></div>
-        ${rate>0?`<div class="l2"><span>匯率 ${esc(p.rate)}（韓幣÷匯率）</span><span>採購金額 <b>${nt(twd*p.qty)}</b></span></div>`:''}
         <div class="cardact"><button onclick="openPurchaseForm('${p.id}')">編輯</button><button class="del" onclick="removeRec('purchases','${p.id}')">刪除</button></div>
       </div>`;
     }).join('');
@@ -1422,8 +1419,8 @@ function purLookupHTML(){
     <div class="nm">${esc(prod.name)}</div>
     <div class="ln"><span>韓國廠商</span><b>${esc(prod.vendor||'—')}</b></div>
     <div class="ln"><span>韓幣成本</span><b>${krwfmt(krw)}</b></div>
-    <div class="ln"><span>台幣成本（匯率 ${rate>0?esc(String(rate)):'未設定'}）</span><b>${rate>0?nt(twd):'商品未設匯率'}</b></div>
-    ${totalQty?`<div class="ln"><span>總數量</span><b>${totalQty} 件</b></div><div class="ln"><span>採購金額（× ${totalQty}）</span><b>${rate>0?nt(twd*totalQty):'—'}</b></div>`:'<div class="hint">在上面填各規格數量</div>'}
+    <div class="ln"><span>台幣成本</span><b>${rate>0?nt(twd):'—'}</b></div>
+    ${totalQty?`<div class="ln"><span>總數量</span><b>${totalQty} 件</b></div>`:'<div class="hint">在上面填各規格數量</div>'}
   </div>`;
 }
 function purLookup(){const el=$('purInfo');if(el)el.innerHTML=purLookupHTML();}
