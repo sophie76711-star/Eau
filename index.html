@@ -148,6 +148,12 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .mfilter{margin-bottom:14px;}
 .mfilter select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);outline:none;box-shadow:var(--shadow-soft);}
 .mfilter select:focus{border-color:var(--main-soft);}
+.psort{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.psort-lbl{font-size:13px;color:var(--ink-soft);}
+.psort button{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:20px;padding:7px 14px;font-size:13px;}
+.psort button.on{background:var(--main);color:#fff;border-color:var(--main);}
+.sub2 .mg-pos{color:var(--sage);font-weight:700;}
+.sub2 .mg-neg{color:var(--clay);font-weight:700;}
 .vqg{border:1px solid var(--line);border-radius:14px;overflow:hidden;}
 .vqg-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border-bottom:1px solid var(--line);}
 .vqg-row:last-child{border-bottom:none;}
@@ -269,8 +275,6 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .rs-row:last-child{border-bottom:none;}
 .rs-l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rs-code{font-family:Nunito;font-weight:700;color:var(--main);margin-right:6px;}
-.rs-rank{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;border-radius:50%;background:var(--main-soft);color:#fff;font-family:Nunito;font-weight:800;font-size:11px;margin-right:8px;vertical-align:middle;}
-.rs-row.r1 .rs-rank{background:var(--main);}
 .rs-nm{font-size:13px;color:var(--ink-soft);}
 .rs-q{font-family:Nunito;font-weight:700;color:var(--clay);white-space:nowrap;}
 .rs-empty{color:var(--ink-soft);font-size:13px;padding:6px 0;}
@@ -683,6 +687,7 @@ let productSearch='';
 let batchMode=false;
 let batchSel=new Set();
 let listMonth='';
+let prodSort='new';
 let reportMonth=currentMonth();
 
 function go(r){route=r;batchMode=false;batchSel=new Set();listMonth='';render();window.scrollTo(0,0);}
@@ -864,7 +869,16 @@ function renderProducts(){
   let list=Store.data.products.slice().reverse();
   if(listMonth)list=list.filter(p=>idMonth(p.id)===listMonth);
   if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||p.baseCode.toLowerCase().includes(q)||(p.variants||[]).some(v=>v.code.toLowerCase().includes(q)));
-  list.sort((a,b)=>(a.status==='已下架'?1:0)-(b.status==='已下架'?1:0)); // 上架在上、已下架沉底（穩定排序保留新→舊）
+  if(prodSort==='profit'){
+    list.sort((a,b)=>{
+      const off=(a.status==='已下架'?1:0)-(b.status==='已下架'?1:0);
+      if(off)return off;
+      const ma=calcCost(a).price-calcCost(a).twd, mb=calcCost(b).price-calcCost(b).twd;
+      return mb-ma; // 單件毛利高→低
+    });
+  }else{
+    list.sort((a,b)=>(a.status==='已下架'?1:0)-(b.status==='已下架'?1:0)); // 上架在上、已下架沉底（穩定排序保留新→舊）
+  }
   const statusPill={'上架中':'on','預購中':'pre','已下架':'off','已售完':'sold'};
   let body;
   if(!Store.data.products.length){
@@ -889,6 +903,7 @@ function renderProducts(){
         <div class="right">
           <div class="price num">${nt(c.price)}</div>
           <div class="sub2">成本 ${nt(c.twd)}</div>
+          <div class="sub2">毛利 <b class="${c.price-c.twd>=0?'mg-pos':'mg-neg'}">${nt(c.price-c.twd)}</b></div>
           <div class="cardact" style="margin-top:8px">
             <button onclick="openProductForm('${p.id}')">編輯</button>
             <button class="del" onclick="removeProduct('${p.id}')">刪除</button>
@@ -906,6 +921,7 @@ function renderProducts(){
       </div></div>
     ${batchMode?'':`<div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>`}
     ${batchMode?'':monthFilterBar(Store.data.products.map(p=>idMonth(p.id)))}
+    ${batchMode?'':`<div class="psort"><span class="psort-lbl">排序</span><button class="${prodSort==='new'?'on':''}" onclick="prodSort='new';render()">最新</button><button class="${prodSort==='profit'?'on':''}" onclick="prodSort='profit';render()">利潤高→低</button></div>`}
     ${batchMode?'<p class="batch-hint">勾選要調整的商品，於下方選擇上架／下架</p>':exportRow('products')}
     <div id="listBody">${body}</div>
     ${batchMode?`<div class="batch-bar"><span class="bcount">已選 ${batchSel.size}</span><button class="bset off" onclick="batchSetStatus('已下架')">下架所選</button><button class="bset on" onclick="batchSetStatus('上架中')">上架所選</button></div>`:''}
@@ -1067,9 +1083,8 @@ function overviewData(){
   const agg={};
   Store.data.sales.forEach(s=>{const sc=saleCalc(s);if(!agg[s.code])agg[s.code]={code:s.code,name:sc.product?sc.product.name:'(查無)',qty:0,profit:0};agg[s.code].qty+=sc.qty;agg[s.code].profit+=sc.profit;});
   const top=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,5);
-  const topProfit=Object.values(agg).filter(t=>{const fv=findVariant(t.code);return fv&&fv.product&&fv.product.status!=='已下架';}).sort((a,b)=>b.profit-a.profit).slice(0,5);
   const trend=allMonths().slice().sort().map(m=>({m,...monthlyReport(m)}));
-  return {rev,exp,net:rev-exp,byCat,stockQty,stockValue,restock,top,topProfit,trend};
+  return {rev,exp,net:rev-exp,byCat,stockQty,stockValue,restock,top,trend};
 }
 /* ---------- 經營總覽（V1：關鍵數字 + 趨勢圖 + 需補貨） ---------- */
 function trendChartSVG(){
@@ -1136,11 +1151,7 @@ function overviewExtraSections(){
   const exp=cats.length
     ? cats.map(([k,v])=>{const pct=d.exp>0?Math.round(v/d.exp*100):0;return `<div class="ov-bar-row"><div class="ov-bar-top"><span>${esc(k)}</span><span>${nt(v)}・${pct}%</span></div><div class="ov-bar"><i style="width:${pct}%"></i></div></div>`;}).join('')
     : `<div class="rs-empty">還沒有費用紀錄</div>`;
-  const prof=d.topProfit.length
-    ? d.topProfit.map((t,i)=>`<div class="rs-row${i===0?' r1':''}"><div class="rs-l"><span class="rs-rank">${i+1}</span><span class="rs-nm">${esc(t.name||'未命名')} · ${esc(t.code)}</span></div><div class="rs-q" style="color:var(--sage);font-weight:800">${nt(t.profit)}</div></div>`).join('')
-    : `<div class="rs-empty">還沒有銷售紀錄</div>`;
-  return `<div class="ov-card"><div class="ov-h"><span>利潤最高 Top 5（已上架）</span></div>${prof}</div>
-    <div class="ov-card"><div class="ov-h"><span>熱賣排行 Top 5</span></div>${top}</div>
+  return `<div class="ov-card"><div class="ov-h"><span>熱賣排行 Top 5</span></div>${top}</div>
     <div class="ov-card"><div class="ov-h"><span>支出結構</span></div>${exp}</div>`;
 }
 
