@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Eau Atelier · 選品工作室</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="選品工作室">
+<meta name="theme-color" content="#A39279">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Nunito:wght@500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -149,6 +153,9 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .mfilter select{width:100%;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);outline:none;box-shadow:var(--shadow-soft);}
 .mfilter select:focus{border-color:var(--main-soft);}
 .psort{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.pcount{font-size:14px;color:var(--ink-soft);margin-bottom:12px;}
+.pcount b{font-family:Nunito;font-weight:800;font-size:17px;color:var(--main);}
+.pcount-sub{font-size:11px;color:var(--main-soft);margin-left:4px;}
 .psort-lbl{font-size:13px;color:var(--ink-soft);}
 .psort button{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:20px;padding:7px 14px;font-size:13px;}
 .psort button.on{background:var(--main);color:#fff;border-color:var(--main);}
@@ -929,6 +936,7 @@ function renderProducts(){
         <button class="batch-btn ${batchMode?'on':''}" onclick="toggleBatch()">${batchMode?'完成':'批次'}</button>
         ${batchMode?'':`<button class="add-btn" onclick="openProductForm()">＋ 新增</button>`}
       </div></div>
+    ${batchMode?'':`<div class="pcount">已上架 <b>${Store.data.products.filter(p=>p.status!=='已下架').length}</b> 款 <span class="pcount-sub">同款不同色算一款</span></div>`}
     ${batchMode?'':`<div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>`}
     ${batchMode?'':monthFilterBar(Store.data.products.map(p=>idMonth(p.id)))}
     ${batchMode?'':`<div class="psort"><span class="psort-lbl">排序</span><button class="${prodSort==='new'?'on':''}" onclick="prodSort='new';render()">最新</button><button class="${prodSort==='profit'?'on':''}" onclick="prodSort='profit';render()">利潤高→低</button></div>`}
@@ -1402,7 +1410,7 @@ function batchListHTML(kind){
       <div class="bl-bot">${qtyCell}${rateCell}</div>
     </div>`;
   }).join('');
-  const note=isSale?'每筆一個月份，可新增多筆不同時段':'每筆一個日期＋當時匯率，可新增多筆不同時段';
+  const note=isSale?'每筆一個月份；按 ✕ 移除該筆，儲存後即刪除':'每筆一個日期＋當時匯率；按 ✕ 移除該筆，儲存後即刪除';
   return `<div class="field"><label>批次數量 <span class="opt">${note}</span></label>
     <div class="bl">${rows||'<div class="bl-empty">尚無批次，點下方「新增批次」</div>'}</div>
     <button type="button" class="bl-add" onclick="addBatch('${kind}')">＋ 新增批次</button>
@@ -1480,11 +1488,14 @@ function saveSale(){
   const f=sf;
   if(!f.pid){toast('請先選擇商品');return;}
   const valid=(f.batches||[]).filter(b=>+b.qty>0&&b.code&&b.when);
-  if(!valid.length){toast('請至少填一筆批次數量');return;}
+  const hadOrig=(f._origIds||[]).length>0;
+  if(!valid.length&&!hadOrig){toast('請至少填一筆批次數量');return;}
   const keep=new Set();let n=0;
   valid.forEach(b=>{const id=b.id||uid();keep.add(id);DB.set('sales',{id,month:b.when,code:b.code,qty:+b.qty});n++;});
-  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid))DB.del('sales',oid);});
-  closeSheet();toast(n>1?`已存 ${n} 筆銷售批次`:'已記錄銷售');
+  let del=0;
+  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid)){DB.del('sales',oid);del++;}});
+  closeSheet();
+  toast(n===0?`已刪除 ${del} 筆銷售批次`:(del>0?`已更新，刪 ${del} 筆`:(n>1?`已存 ${n} 筆銷售批次`:'已記錄銷售')));
 }
 
 /* ----- 採購表單（批次清單） ----- */
@@ -1527,12 +1538,15 @@ function savePurchase(){
   const f=qf;
   if(!f.pid){toast('請先選擇商品');return;}
   const valid=(f.batches||[]).filter(b=>+b.qty>0&&b.code&&b.when);
-  if(!valid.length){toast('請至少填一筆批次數量');return;}
+  const hadOrig=(f._origIds||[]).length>0;
+  if(!valid.length&&!hadOrig){toast('請至少填一筆批次數量');return;}
   const prod=Store.data.products.find(p=>p.id===f.pid);const prodRate=+(prod&&prod.rate)||0;
   const keep=new Set();let n=0;
   valid.forEach(b=>{const id=b.id||uid();keep.add(id);const rate=(+b.rate>0)?+b.rate:prodRate;DB.set('purchases',{id,date:b.when,code:b.code,qty:+b.qty,rate});n++;});
-  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid))DB.del('purchases',oid);});
-  closeSheet();toast(n>1?`已存 ${n} 筆採購批次`:'已記錄採購');
+  let del=0;
+  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid)){DB.del('purchases',oid);del++;}});
+  closeSheet();
+  toast(n===0?`已刪除 ${del} 筆採購批次`:(del>0?`已更新，刪 ${del} 筆`:(n>1?`已存 ${n} 筆採購批次`:'已記錄採購')));
 }
 
 /* ----- 費用表單 ----- */
