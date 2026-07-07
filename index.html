@@ -636,7 +636,8 @@ function saleCalc(s){
   const h=findVariant(s.code);
   const c=h?calcCost(h.product):{price:0,twd:0};
   const qty=+s.qty||0;
-  return {h,product:h?h.product:null,c,qty,rev:c.price*qty,cost:c.twd*qty,profit:(c.price-c.twd)*qty};
+  const unit=(+s.price>0)?+s.price:c.price; // 成交價／件；未填則用商品定價
+  return {h,product:h?h.product:null,c,qty,unit,rev:unit*qty,cost:c.twd*qty,profit:(unit-c.twd)*qty};
 }
 function purchaseTwd(q){
   const h=findVariant(q.code);
@@ -1049,9 +1050,8 @@ function renderSales(){
     body=groups.map(g=>{
       const name=g.product?g.product.name:'（查無此商品編號）';
       const headCode=g.product?g.product.baseCode:g.code;
-      const c=g.product?calcCost(g.product):null;
       let totalQty=0,totalRev=0,totalProf=0;
-      g.batches.forEach(s=>{const qty=+s.qty||0;totalQty+=qty;if(c){totalRev+=c.price*qty;totalProf+=(c.price-c.twd)*qty;}});
+      g.batches.forEach(s=>{const sc=saleCalc(s);totalQty+=sc.qty;totalRev+=sc.rev;totalProf+=sc.profit;});
       const latest=g.batches.reduce((m,s)=>String(s.month)>m?String(s.month):m,'');
       if(!g.product){
         // 查無商品的孤兒紀錄：提供逐筆刪除
@@ -1470,13 +1470,12 @@ function openBatchManager(kind,pid){
   if(!prod){toast('查無此商品');return;}
   const isSale=kind==='sale';
   const recs=productBatchRecords(kind,prod);
-  const c=calcCost(prod);
   let total=0,money=0;
   const rows=recs.map(r=>{
     const qty=+r.qty||0;total+=qty;
     const when=isSale?r.month:(r.date||r.month||'');
     let sub='';
-    if(isSale){money+=c.price*qty;}
+    if(isSale){const sc=saleCalc(r);money+=sc.rev;if(+r.price>0)sub=` · @${nt(+r.price)}`;}
     else{const t=purchaseTwd(r)*qty;money+=t;sub=(+r.rate>0)?` · 匯率 ${esc(String(+r.rate))}`:'';}
     return `<div class="batch-line tap" onclick="openBatchEditor('${kind}','${r.id}','${pid}')">
       <span class="bwhen">${esc(when)}</span>
@@ -1509,9 +1508,9 @@ function openBatchEditor(kind,id,pid){
     const table=isSale?'sales':'purchases';
     const r=Store.data[table].find(x=>x.id===id);
     if(!r){toast('查無此批次');return;}
-    be={kind,pid,id,when:isSale?r.month:(r.date||todayStr()),code:r.code,qty:+r.qty||0,rate:isSale?undefined:(+r.rate||'')};
+    be={kind,pid,id,when:isSale?r.month:(r.date||todayStr()),code:r.code,qty:+r.qty||0,rate:isSale?undefined:(+r.rate||''),price:isSale?(+r.price||''):undefined};
   }else{
-    be={kind,pid,id:null,when:isSale?currentMonth():todayStr(),code:(prod.variants&&prod.variants[0])?prod.variants[0].code:prod.baseCode,qty:'',rate:isSale?undefined:(prod.rate||'')};
+    be={kind,pid,id:null,when:isSale?currentMonth():todayStr(),code:(prod.variants&&prod.variants[0])?prod.variants[0].code:prod.baseCode,qty:'',rate:isSale?undefined:(prod.rate||''),price:isSale?'':undefined};
   }
   drawBatchEditor();
 }
@@ -1526,6 +1525,7 @@ function drawBatchEditor(){
     ?`<div class="field"><label>顏色／尺寸</label><select onchange="be.code=this.value">${vs.map(v=>`<option value="${esc(v.code)}" ${v.code===be.code?'selected':''}>${esc([v.color,v.size].filter(Boolean).join(' · ')||'單一規格')}</option>`).join('')}</select></div>`
     :'';
   const rateField=isSale?'' :`<div class="field"><label>當時匯率 <span class="opt">留空用商品匯率 ${esc(String(prod.rate||'未設'))}</span></label><input type="number" step="0.01" inputmode="decimal" value="${be.rate||''}" oninput="be.rate=this.value" placeholder="${esc(String(prod.rate||''))}"></div>`;
+  const priceField=!isSale?'':`<div class="field"><label>成交價／件 <span class="opt">實際賣出的單價；留空用定價 ${nt(c.price)}</span></label><input type="number" min="0" inputmode="numeric" value="${be.price||''}" oninput="be.price=this.value" placeholder="${c.price}"></div>`;
   const c=calcCost(prod);
   const info=isSale
     ?`<div class="lookup-ok"><div class="ln"><span>售價</span><b>${nt(c.price)}</b></div><div class="ln"><span>台幣成本</span><b>${nt(c.twd)}</b></div></div>`
@@ -1537,6 +1537,7 @@ function drawBatchEditor(){
     ${whenField}
     ${varField}
     <div class="field"><label>數量</label><input type="number" min="0" inputmode="numeric" value="${be.qty||''}" oninput="be.qty=+this.value||0" placeholder="0"></div>
+    ${priceField}
     ${rateField}
     <div class="save-row">
       <button class="btn-ghost" onclick="openBatchManager('${be.kind}','${be.pid}')">返回</button>
@@ -1551,7 +1552,7 @@ function saveBatch(){
   if(!be.qty||be.qty<1){toast('數量至少 1');return;}
   const prod=Store.data.products.find(p=>p.id===be.pid);
   let table,rec;
-  if(isSale){table='sales';rec={id:be.id||uid(),month:be.when,code:be.code,qty:+be.qty};}
+  if(isSale){table='sales';rec={id:be.id||uid(),month:be.when,code:be.code,qty:+be.qty};if(+be.price>0)rec.price=+be.price;}
   else{const rate=(+be.rate>0)?+be.rate:(+(prod&&prod.rate)||0);table='purchases';rec={id:be.id||uid(),date:be.when,code:be.code,qty:+be.qty,rate};}
   // 樂觀更新本地（雲端寫入為非同步；本地模式此步與 DB.set 等價、冪等）
   {const a=Store.data[table];const i=a.findIndex(x=>x.id===rec.id);if(i>=0)a[i]=rec;else a.push(rec);}
@@ -1646,8 +1647,8 @@ function buildSheets(month){
   const mr=[['月份','營收','總支出','商品成本／進貨','營業費用','差旅交通','其他雜費','淨利']];
   (month?[month]:allMonths().slice().sort()).forEach(m=>{const r=monthlyReport(m);mr.push([m,r.revenue,r.expense,r.goods,r.opex,r.travel,r.other,r.net]);});
   // 銷售
-  const sales=[['月份','商品編號','商品名稱','數量','售價','台幣成本','營收','商品成本','毛利']];
-  S.filter(s=>inMonth(s.month)).slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).forEach(s=>{const sc=saleCalc(s);sales.push([s.month,s.code,sc.product?sc.product.name:'(查無)',sc.qty,sc.c.price,sc.c.twd,sc.rev,sc.cost,sc.profit]);});
+  const sales=[['月份','商品編號','商品名稱','數量','成交單價','台幣成本','營收','商品成本','毛利']];
+  S.filter(s=>inMonth(s.month)).slice().sort((a,b)=>(a.month||'').localeCompare(b.month||'')).forEach(s=>{const sc=saleCalc(s);sales.push([s.month,s.code,sc.product?sc.product.name:'(查無)',sc.qty,sc.unit,sc.c.twd,sc.rev,sc.cost,sc.profit]);});
   // 費用
   const exp=[['日期','大分類','小分類','幣別','原始金額','匯率','台幣金額','備註','照片']];
   E.filter(e=>inMonth(monthOf(e.date))).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).forEach(e=>{const cur=e.currency||'TWD';exp.push([e.date,e.major,e.minor||'',cur,(e.inputAmount!==undefined?e.inputAmount:e.amount),(cur==='KRW'?(e.rate||''):''),+e.amount||0,e.note||'',e.photo?'有':'']);});
