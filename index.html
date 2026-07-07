@@ -417,6 +417,9 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .acct-av img{width:100%;height:100%;object-fit:cover;}
 .acct-info .an{font-weight:700;font-size:16px;}
 .acct-info .ae{font-size:13px;color:var(--ink-soft);}
+.bk-box{background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:18px;}
+.bk-t{font-weight:700;font-size:14px;}
+.bk-d{font-size:12px;color:var(--ink-soft);margin-top:3px;}
 
 /* ---------- 匯出按鈕 ---------- */
 .export-row{display:flex;gap:12px;margin:18px 0 6px;}
@@ -816,8 +819,53 @@ function openAccount(){
     </div>
     <button class="exp-btn" style="width:100%;margin-bottom:10px" onclick="closeSheet();exportExcel()">${icoDown} 匯出 Excel（全部月份）</button>
     <button class="exp-btn alt" style="width:100%;margin-bottom:18px" onclick="closeSheet();go('report');setTimeout(exportPDF,200)">${icoDown} 匯出 PDF（本月成績單）</button>
+    <div class="bk-box">
+      <div class="bk-t">資料備份</div>
+      <div class="bk-d">把全部資料存成一個備份檔；誤刪或需要搬家時可匯入還原</div>
+      <input type="file" id="bkFile" accept=".json,application/json" style="display:none" onchange="importBackupFile(this.files[0]);this.value=''">
+      <div class="export-row" style="margin:10px 0 0">
+        <button class="exp-btn alt" onclick="backupData()">${icoDown} 下載備份</button>
+        <button class="exp-btn alt" onclick="document.getElementById('bkFile').click()">匯入備份</button>
+      </div>
+    </div>
     <button class="btn-ghost" style="width:100%" onclick="logout()">登出</button>
   `);
+}
+/* ----- 資料備份／還原 ----- */
+function backupData(){
+  const payload={app:'eau-atelier',version:1,exportedAt:new Date().toISOString(),
+    data:{products:Store.data.products,sales:Store.data.sales,expenses:Store.data.expenses,purchases:Store.data.purchases}};
+  const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+  downloadBlob(blob,'Eau-Atelier-備份-'+todayStr().replace(/-/g,'')+'.json');
+  toast('已下載備份檔，請妥善保存');
+}
+function importBackupFile(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    let obj=null;
+    try{obj=JSON.parse(r.result);}catch(e){toast('備份檔格式不正確');return;}
+    const d=obj&&obj.data;
+    if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses)||!Array.isArray(d.purchases)){toast('這不是有效的備份檔');return;}
+    const total=d.products.length+d.sales.length+d.expenses.length+d.purchases.length;
+    askConfirm({title:'匯入備份?',message:`將寫回 ${total} 筆紀錄：相同紀錄以備份內容覆蓋、被刪除的補回；備份之後新增的資料不會被刪除。`,confirmText:'匯入',danger:false},()=>{
+      let n=0;
+      ['products','sales','expenses','purchases'].forEach(t=>{
+        (d[t]||[]).forEach(rec=>{
+          if(!rec||!rec.id)return;
+          const a=Store.data[t];const i=a.findIndex(x=>x.id===rec.id);
+          if(i>=0)a[i]=rec;else a.push(rec); // 本地立即反映
+          if(DB.cloud)DB.set(t,rec);          // 雲端逐筆寫回
+          n++;
+        });
+      });
+      if(!DB.cloud)Store.save();
+      render();
+      toast(`已匯入 ${n} 筆資料`);
+    });
+  };
+  r.onerror=()=>toast('讀取備份檔失敗');
+  r.readAsText(file);
 }
 function logout(){
   askConfirm({title:'登出?',message:'登出後需重新登入才能使用。',confirmText:'登出'},()=>{
