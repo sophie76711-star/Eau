@@ -161,19 +161,9 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .psort button.on{background:var(--main);color:#fff;border-color:var(--main);}
 .sub2 .mg-pos{color:var(--sage);font-weight:700;}
 .sub2 .mg-neg{color:var(--clay);font-weight:700;}
-.bl{display:flex;flex-direction:column;gap:10px;}
-.bl-row{border:1px solid var(--line);border-radius:13px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--bg);}
-.bl-top{display:flex;align-items:center;gap:8px;}
-.bl-mid{display:flex;}
-.bl-bot{display:flex;align-items:flex-end;gap:8px;}
-.bl .bl-when{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font-size:14px;outline:none;}
-.bl .bl-var{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font-size:14px;outline:none;}
-.bl-cell{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;}
-.bl-cl{font-size:11px;color:var(--ink-soft);padding-left:2px;}
-.bl .bl-in{width:100%;text-align:center;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px;font-size:15px;outline:none;}
-.bl-rm{flex-shrink:0;width:38px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--clay);font-size:15px;}
+.bl{display:flex;flex-direction:column;}
 .bl-empty{color:var(--ink-soft);font-size:13px;padding:8px 2px;}
-.bl-add{margin-top:10px;width:100%;border:1px dashed var(--main-soft);background:var(--card);color:var(--main);border-radius:13px;padding:12px;font-size:14px;font-weight:600;}
+.bl-add{margin-top:12px;width:100%;border:1px dashed var(--main-soft);background:var(--card);color:var(--main);border-radius:13px;padding:12px;font-size:14px;font-weight:600;}
 
 .searchbar{position:relative;margin-bottom:16px;}
 .searchbar input{
@@ -226,6 +216,17 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .batch-line .bwhen{font-family:Nunito;color:var(--ink-soft);min-width:88px;}
 .batch-line .bvar{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--main);font-weight:700;}
 .batch-line .bqty{font-family:Nunito;font-weight:800;white-space:nowrap;}
+.batch-line.tap{cursor:pointer;padding:12px 0;}
+.batch-line .chev{color:var(--main-soft);font-size:18px;font-weight:700;flex-shrink:0;}
+.batch-line .bact{display:flex;gap:6px;flex-shrink:0;}
+.batch-line .bact button{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:5px 10px;font-size:12px;color:var(--ink-soft);}
+.batch-line .bact button.del{color:var(--clay);}
+.tapcard{cursor:pointer;}
+.tapcard .chev{color:var(--main-soft);font-size:18px;font-weight:700;}
+.h3code{font-family:Nunito;font-weight:800;font-size:13px;color:var(--main);margin-left:6px;}
+.bm-sum{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);margin:4px 0 10px;}
+.bm-sum b{font-family:Nunito;color:var(--ink);}
+.btn-danger{color:var(--clay);border-color:var(--clay)!important;}
 
 /* expense diary card */
 .diary{background:var(--card);border-radius:20px;padding:15px 16px;margin-bottom:12px;box-shadow:var(--shadow-soft);border-left:5px solid var(--main-soft);}
@@ -377,7 +378,6 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .lookup-ok .nm{font-weight:700;color:var(--ink);}
 .lookup-ok .ln{display:flex;justify-content:space-between;color:var(--ink-soft);margin-top:3px;}
 .lookup-ok b{font-family:Nunito;color:var(--ink);}
-.lookup-miss{background:rgba(192,130,106,.1);border-radius:14px;padding:12px 14px;margin-top:-6px;margin-bottom:16px;font-size:13px;color:var(--clay);}
 
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:999px;font-size:14px;font-weight:600;z-index:200;opacity:0;transition:all .3s;pointer-events:none;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -994,27 +994,24 @@ function renderSales(){
       const headCode=g.product?g.product.baseCode:g.code;
       const c=g.product?calcCost(g.product):null;
       let totalQty=0,totalRev=0,totalProf=0;
-      const lines=g.batches.map(s=>{
-        const qty=+s.qty||0;totalQty+=qty;
-        if(c){totalRev+=c.price*qty;totalProf+=(c.price-c.twd)*qty;}
-        return `<div class="batch-line">
-          <span class="bwhen">${esc(s.month)}</span>
-          <span class="bvar">${esc(batchVarLabel(s.code))}</span>
-          <span class="bqty">${qty} 件</span>
-        </div>`;
-      }).join('');
-      return `<div class="rowitem">
+      g.batches.forEach(s=>{const qty=+s.qty||0;totalQty+=qty;if(c){totalRev+=c.price*qty;totalProf+=(c.price-c.twd)*qty;}});
+      const latest=g.batches.reduce((m,s)=>String(s.month)>m?String(s.month):m,'');
+      if(!g.product){
+        // 查無商品的孤兒紀錄：提供逐筆刪除
+        const lines=g.batches.map(s=>`<div class="batch-line"><span class="bwhen">${esc(s.month)}</span><span class="bvar">${esc(s.code)}</span><span class="bqty">${s.qty} 件</span><span class="bact"><button class="del" onclick="removeRec('sales','${s.id}')">刪</button></span></div>`).join('');
+        return `<div class="rowitem"><div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div><div class="batches">${lines}</div></div>`;
+      }
+      return `<div class="rowitem tapcard" onclick="openBatchManager('sale','${g.product.id}')">
         <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div>
-        <div class="batches">${lines}</div>
-        <div class="l2"><span>共 <b>${totalQty}</b> 件</span><span>營收 <b>${nt(totalRev)}</b> · 毛利 <b class="${totalProf>=0?'pos':'neg'}">${nt(totalProf)}</b></span></div>
-        <div class="cardact"><button onclick="openSaleForm('${g.batches[0].id}')">編輯批次</button></div>
+        <div class="l2"><span>${g.batches.length} 筆批次 · 最近 ${esc(latest)}</span><span>共 <b>${totalQty}</b> 件</span></div>
+        <div class="l2"><span>營收 <b>${nt(totalRev)}</b> · 毛利 <b class="${totalProf>=0?'pos':'neg'}">${nt(totalProf)}</b></span><span class="chev">›</span></div>
       </div>`;
     }).join('');
   }
   return `<div class="page">
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>銷售紀錄</h2>
-      <button class="add-btn" onclick="openSaleForm()">＋ 新增</button></div>
+      <button class="add-btn" onclick="openRecordPicker('sale')">＋ 新增</button></div>
     ${monthFilterBar(Store.data.sales.map(s=>s.month))}
     ${exportRow('sales')}
     ${body}
@@ -1063,30 +1060,24 @@ function renderPurchases(){
       const headCode=g.product?g.product.baseCode:g.code;
       const vendor=g.product?(g.product.vendor||'—'):'—';
       let totalQty=0,totalCost=0;
-      const lines=g.batches.map(p=>{
-        const qty=+p.qty||0;totalQty+=qty;
-        const cost=purchaseTwd(p)*qty;totalCost+=cost;
-        const when=p.date||p.month||'';
-        const rate=+p.rate||0;
-        return `<div class="batch-line">
-          <span class="bwhen">${esc(when)}</span>
-          <span class="bvar">${esc(batchVarLabel(p.code))}${rate>0?` · 匯率 ${esc(String(rate))}`:''}</span>
-          <span class="bqty">${qty} 件${rate>0?` · ${nt(cost)}`:''}</span>
-        </div>`;
-      }).join('');
-      return `<div class="rowitem">
+      g.batches.forEach(p=>{const qty=+p.qty||0;totalQty+=qty;totalCost+=purchaseTwd(p)*qty;});
+      const latest=g.batches.reduce((m,p)=>{const w=String(p.date||p.month||'');return w>m?w:m;},'');
+      if(!g.product){
+        const lines=g.batches.map(p=>`<div class="batch-line"><span class="bwhen">${esc(p.date||p.month||'')}</span><span class="bvar">${esc(p.code)}</span><span class="bqty">${p.qty} 件</span><span class="bact"><button class="del" onclick="removeRec('purchases','${p.id}')">刪</button></span></div>`).join('');
+        return `<div class="rowitem"><div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div><div class="batches">${lines}</div></div>`;
+      }
+      return `<div class="rowitem tapcard" onclick="openBatchManager('pur','${g.product.id}')">
         <div class="l1"><span class="nm">${esc(name)}</span><span class="code">${esc(headCode)}</span></div>
         <div class="bsub">${esc(vendor)}</div>
-        <div class="batches">${lines}</div>
-        <div class="l2"><span>共 <b>${totalQty}</b> 件</span><span>採購成本 <b>${nt(totalCost)}</b></span></div>
-        <div class="cardact"><button onclick="openPurchaseForm('${g.batches[0].id}')">編輯批次</button></div>
+        <div class="l2"><span>${g.batches.length} 筆批次 · 最近 ${esc(latest)}</span><span>共 <b>${totalQty}</b> 件</span></div>
+        <div class="l2"><span>採購成本 <b>${nt(totalCost)}</b></span><span class="chev">›</span></div>
       </div>`;
     }).join('');
   }
   return `<div class="page">
     <div class="phead"><button class="back" onclick="go('home')">${icoBack}</button>
       <h2>採購紀錄</h2>
-      <button class="add-btn" onclick="openPurchaseForm()">＋ 新增</button></div>
+      <button class="add-btn" onclick="openRecordPicker('pur')">＋ 新增</button></div>
     ${monthFilterBar(Store.data.purchases.map(q=>q.date?monthOf(q.date):q.month))}
     ${exportRow('purchases')}
     ${body}
@@ -1370,184 +1361,140 @@ function removeProduct(id){
     DB.del('products',id);toast('已刪除商品');
   });
 }
-
-/* ----- 共用：商品選擇器 + 各規格數量輸入（銷售／採購共用；排除已下架） ----- */
+/* ===== 銷售／採購：三層結構（選商品 → 批次清單 → 單筆編輯） ===== */
 function activeProducts(){return Store.data.products.filter(p=>p.status!=='已下架');}
-function curForm(kind){return kind==='sale'?sf:qf;}
-function variantSelectorHTML(kind){
-  const f=curForm(kind);
-  const prods=activeProducts();
-  const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
-  if(!prods.length&&!prod)return `<div class="lookup-miss">請先到商品庫建立商品（或商品都已下架）。</div>`;
-  const listId=kind+'ProdList';
-  let selList=prods.slice();
-  if(prod&&!selList.some(p=>p.id===prod.id))selList=[prod,...selList];
-  const dl=`<datalist id="${listId}">${prods.map(p=>`<option value="${esc(p.baseCode)}">${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('')}</datalist>`;
-  const search=`${dl}<input class="vs-input" list="${listId}" placeholder="輸入商品編號或名稱搜尋" value="${prod?esc(prod.baseCode):''}" onchange="selProduct('${kind}',this.value)">`;
-  const opts=`<option value="">或從清單選擇商品…</option>`+selList.map(p=>`<option value="${esc(p.baseCode)}" ${prod&&p.id===f.pid?'selected':''}>${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('');
-  const dropdown=`<select class="vs-sel-full" onchange="selProduct('${kind}',this.value)">${opts}</select>`;
-  return search+dropdown;
-}
-function batchListHTML(kind){
-  const f=curForm(kind);
-  const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
-  if(!prod)return '';
-  const vs=prod.variants||[];
-  const multi=vs.length>1;
-  const isSale=kind==='sale';
-  const rows=(f.batches||[]).map((b,i)=>{
-    const whenInput=isSale
-      ?`<input type="month" class="bl-when" value="${toMonthInput(b.when)}" onchange="setBatch('${kind}',${i},'when',fromMonthInput(this.value))">`
-      :`<input type="date" class="bl-when" value="${esc(b.when||'')}" onchange="setBatch('${kind}',${i},'when',this.value)">`;
-    const varLine=multi
-      ?`<div class="bl-mid"><select class="bl-var" onchange="setBatch('${kind}',${i},'code',this.value)">${vs.map(v=>`<option value="${esc(v.code)}" ${v.code===b.code?'selected':''}>${esc([v.color,v.size].filter(Boolean).join('·')||'單一規格')}</option>`).join('')}</select></div>`
-      :'';
-    const qtyCell=`<div class="bl-cell"><span class="bl-cl">數量</span><input type="number" min="0" inputmode="numeric" class="bl-in" placeholder="0" value="${b.qty||''}" oninput="setBatch('${kind}',${i},'qty',this.value)"></div>`;
-    const rateCell=isSale?'':`<div class="bl-cell"><span class="bl-cl">匯率</span><input type="number" step="0.01" inputmode="decimal" class="bl-in" placeholder="${prod.rate||''}" value="${b.rate||''}" oninput="setBatch('${kind}',${i},'rate',this.value)"></div>`;
-    return `<div class="bl-row">
-      <div class="bl-top">${whenInput}<button type="button" class="bl-rm" onclick="rmBatch('${kind}',${i})">✕</button></div>
-      ${varLine}
-      <div class="bl-bot">${qtyCell}${rateCell}</div>
-    </div>`;
-  }).join('');
-  const note=isSale?'每筆一個月份；按 ✕ 移除該筆，儲存後即刪除':'每筆一個日期＋當時匯率；按 ✕ 移除該筆，儲存後即刪除';
-  return `<div class="field"><label>批次數量 <span class="opt">${note}</span></label>
-    <div class="bl">${rows||'<div class="bl-empty">尚無批次，點下方「新增批次」</div>'}</div>
-    <button type="button" class="bl-add" onclick="addBatch('${kind}')">＋ 新增批次</button>
-  </div>`;
-}
-function defaultVarCode(prod){return (prod.variants&&prod.variants[0])?prod.variants[0].code:prod.baseCode;}
-function newBatch(kind,prod){return {id:null,when:kind==='sale'?currentMonth():todayStr(),code:defaultVarCode(prod),qty:'',rate:kind==='sale'?undefined:(prod.rate||'')};}
-function addBatch(kind){
-  const f=curForm(kind);const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
-  if(!prod){toast('請先選擇商品');return;}
-  f.batches=f.batches||[];
-  f.batches.push(newBatch(kind,prod));
-  refreshSel(kind);
-}
-function rmBatch(kind,i){const f=curForm(kind);f.batches.splice(i,1);refreshSel(kind);}
-function setBatch(kind,i,field,val){const f=curForm(kind);if(!f.batches||!f.batches[i])return;f.batches[i][field]=(field==='qty')?(+val||0):val;(kind==='sale'?saleLookup:purLookup)();}
-function refreshSel(kind){const sel=$(kind+'Sel');if(sel)sel.innerHTML=variantSelectorHTML(kind);const g=$(kind+'Grid');if(g)g.innerHTML=batchListHTML(kind);(kind==='sale'?saleLookup:purLookup)();}
-/* 載入某商品「過去已記錄的批次」（讓使用者看到先前寫的數量，而不是空白） */
-function loadProductBatches(f,kind,prod){
+function productBatchRecords(kind,prod){
   const table=kind==='sale'?'sales':'purchases';
   const codes=new Set((prod.variants||[]).map(v=>v.code));
   const wk=x=>kind==='sale'?(x.month||''):(x.date||x.month||'');
-  const recs=Store.data[table].filter(x=>codes.has(x.code)).slice().sort((a,b)=>String(wk(a)).localeCompare(String(wk(b))));
-  f.batches=recs.map(x=>kind==='sale'
-    ?{id:x.id,when:x.month,code:x.code,qty:+x.qty||0}
-    :{id:x.id,when:x.date||(x.month?x.month.replace('/','-')+'-01':todayStr()),code:x.code,qty:+x.qty||0,rate:+x.rate||0});
-  f._origIds=recs.map(x=>x.id);
-}
-function selProduct(kind,baseCode){
-  const f=curForm(kind);
-  const prod=activeProducts().find(p=>p.baseCode===baseCode)||Store.data.products.find(p=>p.baseCode===baseCode);
-  if(prod){f.pid=prod.id;loadProductBatches(f,kind,prod);f.batches.push(newBatch(kind,prod));} // 過去批次 + 一筆新空白
-  else{f.pid=null;f.batches=[];f._origIds=[];}
-  refreshSel(kind);
+  return Store.data[table].filter(x=>codes.has(x.code)).slice().sort((a,b)=>String(wk(b)).localeCompare(String(wk(a)))); // 新→舊
 }
 
-/* ----- 銷售表單（批次清單） ----- */
-let sf=null;
-function openSaleForm(id){
-  sf={pid:null,batches:[],_origIds:[]};
-  if(id){
-    const s=Store.data.sales.find(x=>x.id===id);const h=s?findVariant(s.code):null;const prod=h?h.product:null;
-    if(prod){sf.pid=prod.id;loadProductBatches(sf,'sale',prod);}
-    else if(s){sf.batches=[{id:s.id,when:s.month,code:s.code,qty:+s.qty||0}];sf._origIds=[s.id];}
-  }
-  drawSaleForm();
-}
-function drawSaleForm(){
+/* --- 第 0 層：新增時先選商品 --- */
+function openRecordPicker(kind){
+  const prods=activeProducts();
+  if(!prods.length){toast('請先到商品庫建立商品');return;}
+  const listId=kind+'PickList';
+  const dl=`<datalist id="${listId}">${prods.map(p=>`<option value="${esc(p.baseCode)}">${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('')}</datalist>`;
   openSheet(`
-    <h3>${(sf._origIds&&sf._origIds.length)?'編輯銷售批次':'記一筆銷售'}</h3>
-    <p class="desc">選商品後，逐筆新增不同月份的批次數量；營收毛利自動算</p>
-    <div class="field"><label>選擇商品</label><div id="saleSel">${variantSelectorHTML('sale')}</div></div>
-    <div id="saleGrid">${batchListHTML('sale')}</div>
-    <div id="saleInfo">${saleLookupHTML()}</div>
-    <div class="save-row"><button class="btn-ghost" onclick="closeSheet()">取消</button><button class="btn-primary" onclick="saveSale()">儲存</button></div>
+    <h3>${kind==='sale'?'記銷售':'記採購'} · 選擇商品</h3>
+    <p class="desc">選好商品後進入該商品的批次清單</p>
+    <div class="field"><label>商品</label>
+      ${dl}<input class="vs-input" list="${listId}" placeholder="輸入商品編號或名稱搜尋" onchange="pickProduct('${kind}',this.value)">
+      <select class="vs-sel-full" onchange="pickProduct('${kind}',this.value)">
+        <option value="">或從清單選擇商品…</option>
+        ${prods.map(p=>`<option value="${esc(p.baseCode)}">${esc(p.baseCode)} · ${esc(p.name||'未命名')}</option>`).join('')}
+      </select>
+    </div>
+    <div class="save-row"><button class="btn-ghost" onclick="closeSheet()">取消</button></div>
   `);
 }
-function saleLookupHTML(){
-  const f=sf;const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
-  if(!prod)return '';
+function pickProduct(kind,baseCode){
+  const prod=activeProducts().find(p=>p.baseCode===baseCode);
+  if(!prod)return;
+  openBatchManager(kind,prod.id);
+}
+
+/* --- 第 2 層：某商品的批次清單 --- */
+function openBatchManager(kind,pid){
+  const prod=Store.data.products.find(p=>p.id===pid);
+  if(!prod){toast('查無此商品');return;}
+  const isSale=kind==='sale';
+  const recs=productBatchRecords(kind,prod);
   const c=calcCost(prod);
-  const totalQty=(f.batches||[]).reduce((s,b)=>s+(+b.qty||0),0);
-  const rev=c.price*totalQty,profit=(c.price-c.twd)*totalQty;
-  return `<div class="lookup-ok">
-    <div class="nm">${esc(prod.name)}</div>
-    <div class="ln"><span>售價</span><b>${nt(c.price)}</b></div>
-    <div class="ln"><span>台幣成本</span><b>${nt(c.twd)}</b></div>
-    ${totalQty?`<div class="ln"><span>批次合計</span><b>${totalQty} 件</b></div>
-    <div class="ln"><span>營收（售價 × ${totalQty}）</span><b>${nt(rev)}</b></div>
-    <div class="ln"><span>毛利</span><b class="${profit>=0?'pos':'neg'}">${nt(profit)}</b></div>`:'<div class="hint">用上面「新增批次」加入數量</div>'}
-  </div>`;
-}
-function saleLookup(){const el=$('saleInfo');if(el)el.innerHTML=saleLookupHTML();}
-function saveSale(){
-  const f=sf;
-  if(!f.pid){toast('請先選擇商品');return;}
-  const valid=(f.batches||[]).filter(b=>+b.qty>0&&b.code&&b.when);
-  const hadOrig=(f._origIds||[]).length>0;
-  if(!valid.length&&!hadOrig){toast('請至少填一筆批次數量');return;}
-  const keep=new Set();let n=0;
-  valid.forEach(b=>{const id=b.id||uid();keep.add(id);DB.set('sales',{id,month:b.when,code:b.code,qty:+b.qty});n++;});
-  let del=0;
-  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid)){DB.del('sales',oid);del++;}});
-  closeSheet();
-  toast(n===0?`已刪除 ${del} 筆銷售批次`:(del>0?`已更新，刪 ${del} 筆`:(n>1?`已存 ${n} 筆銷售批次`:'已記錄銷售')));
-}
-
-/* ----- 採購表單（批次清單） ----- */
-let qf=null;
-function openPurchaseForm(id){
-  qf={pid:null,batches:[],_origIds:[]};
-  if(id){
-    const q=Store.data.purchases.find(x=>x.id===id);const h=q?findVariant(q.code):null;const prod=h?h.product:null;
-    if(prod){qf.pid=prod.id;loadProductBatches(qf,'pur',prod);}
-    else if(q){qf.batches=[{id:q.id,when:q.date||todayStr(),code:q.code,qty:+q.qty||0,rate:+q.rate||0}];qf._origIds=[q.id];}
-  }
-  drawPurchaseForm();
-}
-function drawPurchaseForm(){
+  let total=0,money=0;
+  const rows=recs.map(r=>{
+    const qty=+r.qty||0;total+=qty;
+    const when=isSale?r.month:(r.date||r.month||'');
+    let sub='';
+    if(isSale){money+=c.price*qty;}
+    else{const t=purchaseTwd(r)*qty;money+=t;sub=(+r.rate>0)?` · 匯率 ${esc(String(+r.rate))}`:'';}
+    return `<div class="batch-line tap" onclick="openBatchEditor('${kind}','${r.id}','${pid}')">
+      <span class="bwhen">${esc(when)}</span>
+      <span class="bvar">${esc(batchVarLabel(r.code))}${sub}</span>
+      <span class="bqty">${qty} 件</span>
+      <span class="chev">›</span>
+    </div>`;
+  }).join('');
   openSheet(`
-    <h3>${(qf._origIds&&qf._origIds.length)?'編輯採購批次':'記一筆採購'}</h3>
-    <p class="desc">選商品後，逐筆新增不同日期的批次；每筆可填當時匯率（預設帶入商品匯率）</p>
-    <div class="field"><label>選擇商品</label><div id="purSel">${variantSelectorHTML('pur')}</div></div>
-    <div id="purGrid">${batchListHTML('pur')}</div>
-    <div id="purInfo">${purLookupHTML()}</div>
-    <div class="save-row"><button class="btn-ghost" onclick="closeSheet()">取消</button><button class="btn-primary" onclick="savePurchase()">儲存</button></div>
+    <h3>${esc(prod.name||'未命名')} <span class="h3code">${esc(prod.baseCode)}</span></h3>
+    <p class="desc">${isSale?'銷售':'採購'}批次 · 點任一筆進入修改；${isSale?'月份為單位':'日期為單位'}</p>
+    <div class="bm-sum"><span>共 ${recs.length} 筆 · ${total} 件</span><span>${isSale?'營收':'成本'} <b>${nt(money)}</b></span></div>
+    <div class="bl">${rows||'<div class="bl-empty">還沒有批次紀錄</div>'}</div>
+    <button type="button" class="bl-add" onclick="openBatchEditor('${kind}',null,'${pid}')">＋ 新增批次</button>
+    <div class="save-row"><button class="btn-ghost" onclick="closeSheet()">完成</button></div>
   `);
 }
-function purLookupHTML(){
-  const f=qf;const prod=f.pid?Store.data.products.find(p=>p.id===f.pid):null;
-  if(!prod)return '';
-  const krw=+prod.krwCost||0,prodRate=+prod.rate||0;
-  let totalQty=0,totalCost=0;
-  (f.batches||[]).forEach(b=>{const q=+b.qty||0;if(q<=0)return;totalQty+=q;const r=(+b.rate>0)?+b.rate:prodRate;if(r>0)totalCost+=Math.round(krw/r)*q;});
-  return `<div class="lookup-ok">
-    <div class="nm">${esc(prod.name)}</div>
-    <div class="ln"><span>韓國廠商</span><b>${esc(prod.vendor||'—')}</b></div>
-    <div class="ln"><span>韓幣成本/件</span><b>${krwfmt(krw)}</b></div>
-    ${totalQty?`<div class="ln"><span>批次合計</span><b>${totalQty} 件</b></div>
-    <div class="ln"><span>採購總成本（依各批次匯率）</span><b>${nt(totalCost)}</b></div>`:'<div class="hint">用上面「新增批次」加入數量與匯率</div>'}
-  </div>`;
+
+/* --- 第 3 層：單筆批次編輯 --- */
+let be=null;
+function openBatchEditor(kind,id,pid){
+  const prod=Store.data.products.find(p=>p.id===pid);
+  if(!prod){toast('查無此商品');return;}
+  const isSale=kind==='sale';
+  if(id){
+    const table=isSale?'sales':'purchases';
+    const r=Store.data[table].find(x=>x.id===id);
+    if(!r){toast('查無此批次');return;}
+    be={kind,pid,id,when:isSale?r.month:(r.date||todayStr()),code:r.code,qty:+r.qty||0,rate:isSale?undefined:(+r.rate||'')};
+  }else{
+    be={kind,pid,id:null,when:isSale?currentMonth():todayStr(),code:(prod.variants&&prod.variants[0])?prod.variants[0].code:prod.baseCode,qty:'',rate:isSale?undefined:(prod.rate||'')};
+  }
+  drawBatchEditor();
 }
-function purLookup(){const el=$('purInfo');if(el)el.innerHTML=purLookupHTML();}
-function savePurchase(){
-  const f=qf;
-  if(!f.pid){toast('請先選擇商品');return;}
-  const valid=(f.batches||[]).filter(b=>+b.qty>0&&b.code&&b.when);
-  const hadOrig=(f._origIds||[]).length>0;
-  if(!valid.length&&!hadOrig){toast('請至少填一筆批次數量');return;}
-  const prod=Store.data.products.find(p=>p.id===f.pid);const prodRate=+(prod&&prod.rate)||0;
-  const keep=new Set();let n=0;
-  valid.forEach(b=>{const id=b.id||uid();keep.add(id);const rate=(+b.rate>0)?+b.rate:prodRate;DB.set('purchases',{id,date:b.when,code:b.code,qty:+b.qty,rate});n++;});
-  let del=0;
-  (f._origIds||[]).forEach(oid=>{if(!keep.has(oid)){DB.del('purchases',oid);del++;}});
-  closeSheet();
-  toast(n===0?`已刪除 ${del} 筆採購批次`:(del>0?`已更新，刪 ${del} 筆`:(n>1?`已存 ${n} 筆採購批次`:'已記錄採購')));
+function drawBatchEditor(){
+  const isSale=be.kind==='sale';
+  const prod=Store.data.products.find(p=>p.id===be.pid);
+  const vs=prod.variants||[];
+  const whenField=isSale
+    ?`<div class="field"><label>月份</label><input type="month" value="${toMonthInput(be.when)}" onchange="be.when=fromMonthInput(this.value)"></div>`
+    :`<div class="field"><label>採購日期</label><input type="date" value="${esc(be.when)}" onchange="be.when=this.value"></div>`;
+  const varField=vs.length>1
+    ?`<div class="field"><label>顏色／尺寸</label><select onchange="be.code=this.value">${vs.map(v=>`<option value="${esc(v.code)}" ${v.code===be.code?'selected':''}>${esc([v.color,v.size].filter(Boolean).join(' · ')||'單一規格')}</option>`).join('')}</select></div>`
+    :'';
+  const rateField=isSale?'' :`<div class="field"><label>當時匯率 <span class="opt">留空用商品匯率 ${esc(String(prod.rate||'未設'))}</span></label><input type="number" step="0.01" inputmode="decimal" value="${be.rate||''}" oninput="be.rate=this.value" placeholder="${esc(String(prod.rate||''))}"></div>`;
+  const c=calcCost(prod);
+  const info=isSale
+    ?`<div class="lookup-ok"><div class="ln"><span>售價</span><b>${nt(c.price)}</b></div><div class="ln"><span>台幣成本</span><b>${nt(c.twd)}</b></div></div>`
+    :`<div class="lookup-ok"><div class="ln"><span>韓幣成本／件</span><b>${krwfmt(+prod.krwCost||0)}</b></div></div>`;
+  openSheet(`
+    <h3>${be.id?'修改批次':'新增批次'} <span class="h3code">${esc(prod.baseCode)}</span></h3>
+    <p class="desc">${esc(prod.name||'')}</p>
+    ${info}
+    ${whenField}
+    ${varField}
+    <div class="field"><label>數量</label><input type="number" min="0" inputmode="numeric" value="${be.qty||''}" oninput="be.qty=+this.value||0" placeholder="0"></div>
+    ${rateField}
+    <div class="save-row">
+      <button class="btn-ghost" onclick="openBatchManager('${be.kind}','${be.pid}')">返回</button>
+      ${be.id?`<button class="btn-ghost btn-danger" onclick="deleteBatch()">刪除</button>`:''}
+      <button class="btn-primary" onclick="saveBatch()">儲存</button>
+    </div>
+  `);
 }
+function saveBatch(){
+  const isSale=be.kind==='sale';
+  if(!be.when){toast(isSale?'請選月份':'請選日期');return;}
+  if(!be.qty||be.qty<1){toast('數量至少 1');return;}
+  const prod=Store.data.products.find(p=>p.id===be.pid);
+  let table,rec;
+  if(isSale){table='sales';rec={id:be.id||uid(),month:be.when,code:be.code,qty:+be.qty};}
+  else{const rate=(+be.rate>0)?+be.rate:(+(prod&&prod.rate)||0);table='purchases';rec={id:be.id||uid(),date:be.when,code:be.code,qty:+be.qty,rate};}
+  // 樂觀更新本地（雲端寫入為非同步；本地模式此步與 DB.set 等價、冪等）
+  {const a=Store.data[table];const i=a.findIndex(x=>x.id===rec.id);if(i>=0)a[i]=rec;else a.push(rec);}
+  DB.set(table,rec);
+  toast(be.id?'已更新批次':'已新增批次');
+  openBatchManager(be.kind,be.pid);
+}
+function deleteBatch(){
+  const kind=be.kind,pid=be.pid,id=be.id,table=kind==='sale'?'sales':'purchases';
+  askConfirm({title:'刪除這筆批次?',message:'刪除後無法復原，現貨與報表會同步更新。',confirmText:'刪除'},()=>{
+    Store.data[table]=Store.data[table].filter(x=>x.id!==id); // 樂觀更新
+    DB.del(table,id);toast('已刪除批次');
+    openBatchManager(kind,pid);
+  });
+}
+
 
 /* ----- 費用表單 ----- */
 let ef=null;
