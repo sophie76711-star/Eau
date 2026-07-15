@@ -156,6 +156,17 @@ input,select,textarea{font-family:inherit;font-size:16px;color:var(--ink);}
 .pcount{font-size:14px;color:var(--ink-soft);margin-bottom:12px;}
 .pcount b{font-family:Nunito;font-weight:800;font-size:17px;color:var(--main);}
 .pcount-sub{font-size:11px;color:var(--main-soft);margin-left:4px;}
+.quick-row{display:flex;gap:10px;margin-bottom:16px;}
+.qbtn{flex:1;border:1px dashed var(--main-soft);background:var(--card);color:var(--main);border-radius:14px;padding:13px;font-size:14px;font-weight:700;}
+.mm-card{background:var(--card);border-radius:18px;padding:16px;margin-top:14px;box-shadow:var(--shadow-soft);}
+.mm-t{font-weight:700;font-size:14px;margin-bottom:8px;}
+.mm-prev{font-weight:400;font-size:12px;color:var(--ink-soft);}
+.mm-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px;color:var(--ink-soft);}
+.mm-row:last-child{border-bottom:none;}
+.mm-up{color:var(--sage);font-family:Nunito;font-weight:800;}
+.mm-down{color:var(--clay);font-family:Nunito;font-weight:800;}
+.mm-flat{color:var(--ink-soft);font-family:Nunito;font-weight:700;}
+.rs-tap{cursor:pointer;}
 .psort-lbl{font-size:13px;color:var(--ink-soft);}
 .psort button{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:20px;padding:7px 14px;font-size:13px;}
 .psort button.on{background:var(--main);color:#fff;border-color:var(--main);}
@@ -685,7 +696,7 @@ function restockList(){
   const out=[];
   Store.data.products.forEach(p=>{
     if(p.status==='已下架')return; // 已下架不列入補貨清單
-    (p.variants||[]).forEach(v=>{const q=variantRestock(v);if(q>0)out.push({code:v.code,name:p.name,color:v.color||'',size:v.size||'',qty:q});});
+    (p.variants||[]).forEach(v=>{const q=variantRestock(v);if(q>0)out.push({pid:p.id,code:v.code,name:p.name,color:v.color||'',size:v.size||'',qty:q});});
   });
   return out.sort((a,b)=>b.qty-a.qty);
 }
@@ -718,9 +729,10 @@ let batchMode=false;
 let batchSel=new Set();
 let listMonth='';
 let prodSort='new';
+let prodCat='';
 let reportMonth=currentMonth();
 
-function go(r){route=r;batchMode=false;batchSel=new Set();listMonth='';render();window.scrollTo(0,0);}
+function go(r){route=r;batchMode=false;batchSel=new Set();listMonth='';prodCat='';render();window.scrollTo(0,0);}
 
 function render(){
   const app=$('app');
@@ -911,6 +923,10 @@ function renderHome(){
         <div class="g-cell"><span class="t">vs 上月</span><span class="v">${deltaTxt}</span></div>
       </div>
     </div>
+    <div class="quick-row">
+      <button class="qbtn" onclick="go('sales');openRecordPicker('sale')">＋ 快速記銷售</button>
+      <button class="qbtn" onclick="go('purchases');openRecordPicker('pur')">＋ 快速記採購</button>
+    </div>
     <div class="grid">
       ${tiles.map(t=>`<button class="tile" onclick="go('${t.r}')">
         <div class="ill">${t.ill}</div>
@@ -942,6 +958,7 @@ function monthFilterBar(months){
 function renderProducts(){
   const q=productSearch.trim().toLowerCase();
   let list=Store.data.products.slice().reverse();
+  if(prodCat)list=list.filter(p=>p.category===prodCat);
   if(listMonth)list=list.filter(p=>idMonth(p.id)===listMonth);
   if(q)list=list.filter(p=>p.name.toLowerCase().includes(q)||p.baseCode.toLowerCase().includes(q)||(p.variants||[]).some(v=>v.code.toLowerCase().includes(q)));
   if(prodSort==='profit'){
@@ -997,6 +1014,7 @@ function renderProducts(){
     ${batchMode?'':`<div class="pcount">已上架 <b>${Store.data.products.filter(p=>p.status!=='已下架').length}</b> 款 <span class="pcount-sub">同款不同色算一款</span></div>`}
     ${batchMode?'':`<div class="searchbar">${icoSearch}<input placeholder="搜尋商品編號或名稱" value="${esc(productSearch)}" oninput="productSearch=this.value;rerenderList()"></div>`}
     ${batchMode?'':monthFilterBar(Store.data.products.map(p=>idMonth(p.id)))}
+    ${batchMode?'':`<div class="psort"><span class="psort-lbl">分類</span><button class="${prodCat===''?'on':''}" onclick="prodCat='';render()">全部</button>${CATEGORIES.map(x=>`<button class="${prodCat===x.code?'on':''}" onclick="prodCat='${x.code}';render()">${x.code}</button>`).join('')}</div>`}
     ${batchMode?'':`<div class="psort"><span class="psort-lbl">排序</span><button class="${prodSort==='new'?'on':''}" onclick="prodSort='new';render()">最新</button><button class="${prodSort==='profit'?'on':''}" onclick="prodSort='profit';render()">利潤高→低</button></div>`}
     ${batchMode?'<p class="batch-hint">勾選要調整的商品，於下方選擇上架／下架</p>':exportRow('products')}
     <div id="listBody">${body}</div>
@@ -1164,6 +1182,9 @@ function monthBody(){
   const months=allMonths();
   const r=monthlyReport(reportMonth);
   const netSign=r.net>0?'本月有賺 ✦':(r.net<0?'本月先投資未來':'打平');
+  const prevM=shiftMonth(reportMonth,-1);
+  const pr=monthlyReport(prevM);
+  const cmp=(cur,prev)=>{const d=cur-prev;return d===0?'<span class="mm-flat">持平</span>':`<span class="${d>0?'mm-up':'mm-down'}">${d>0?'↑':'↓'} ${nt(Math.abs(d))}</span>`;};
   return `
     <div class="monthrow">
       ${months.map(m=>`<button class="mchip ${m===reportMonth?'active':''}" onclick="reportMonth='${m}';render()">${esc(m)}</button>`).join('')}
@@ -1181,6 +1202,12 @@ function monthBody(){
       <div class="rrow sub"><span class="k">· 差旅交通</span><span class="v num">−${nt(r.travel)}</span></div>
       <div class="rrow sub"><span class="k">· 其他雜費</span><span class="v num">−${nt(r.other)}</span></div>
       <div class="rrow total"><span class="k">淨利</span><span class="v num ${r.net>=0?'pos':'neg'}">${nt(r.net)}</span></div>
+    </div>
+    <div class="mm-card">
+      <div class="mm-t">與上月比較 <span class="mm-prev">（${esc(prevM)}）</span></div>
+      <div class="mm-row"><span>營收</span>${cmp(r.revenue,pr.revenue)}</div>
+      <div class="mm-row"><span>支出</span>${cmp(r.expense,pr.expense)}</div>
+      <div class="mm-row"><span>淨利</span>${cmp(r.net,pr.net)}</div>
     </div>
     <div class="export-row">
       <button class="exp-btn" onclick="exportPDF()">${icoDown} 存成 PDF</button>
@@ -1245,10 +1272,11 @@ function renderOverview(){
 
     <div class="ov-card">
       <div class="ov-h"><span>需補貨清單</span><span class="ov-cnt">${restock.length} 項</span></div>
-      ${restock.length?restock.map(x=>{const spec=[x.color,x.size].filter(Boolean).join(' ');return `<div class="rs-row">
+      ${restock.length?restock.map(x=>{const spec=[x.color,x.size].filter(Boolean).join(' ');return `<div class="rs-row rs-tap" onclick="openBatchManager('pur','${x.pid}')">
         <div class="rs-l"><span class="rs-code">${esc(x.code)}</span><span class="rs-nm">${esc(x.name||'未命名')}${spec?' · '+esc(spec):''}</span></div>
-        <div class="rs-q">需補 <b>${x.qty}</b></div>
+        <div class="rs-q">需補 <b>${x.qty}</b><span class="chev" style="margin-left:6px">›</span></div>
       </div>`;}).join(''):`<div class="rs-empty">目前沒有需要補貨的商品 ✓</div>`}
+      ${restock.length?`<div class="ov-note">點任一項可直接記採購補貨</div>`:''}
     </div>
 
     <div class="ov-card">
@@ -1353,12 +1381,17 @@ function drawProductForm(){
       <div class="addinline"><input id="sizeIn" placeholder="例：S 或 37" onkeydown="if(event.key==='Enter'){event.preventDefault();pfAddSize()}"><button onclick="pfAddSize()">加入</button></div>
     </div>
 
-    <div class="field"><label>規格一覽 <span class="opt">現貨由「採購 − 銷售」自動計算，不需在此填數量</span></label>
+    <div class="field"><label>規格一覽 <span class="opt">依尺寸排序預覽（同 easystore 後台）；現貨由「採購 − 銷售」自動計算</span></label>
       <div class="variant-tbl" id="vTbl">
-        ${pf.variants.map(v=>`<div class="vr">
+        ${(()=>{
+          const sOrd=pf.sizes||[],cOrd=pf.colors||[];
+          const idx=(arr,v)=>{const i=arr.indexOf(v);return i<0?999:i;};
+          const vs=pf.variants.slice().sort((a,b)=>idx(sOrd,a.size)-idx(sOrd,b.size)||idx(cOrd,a.color)-idx(cOrd,b.color)); // 僅排序顯示，資料與編號不變
+          return vs.map(v=>`<div class="vr">
           <span class="vc">${esc(v.code)}</span>
-          <span class="vd">${[v.color,v.size].filter(Boolean).join(' · ')||'單一規格'}</span>
-        </div>`).join('')}
+          <span class="vd">${[v.size,v.color].filter(Boolean).join(' · ')||'單一規格'}</span>
+        </div>`).join('');
+        })()}
       </div>
     </div>
 
